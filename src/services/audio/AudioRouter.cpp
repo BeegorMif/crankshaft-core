@@ -22,6 +22,7 @@
 #include <unistd.h>
 
 #include <QAudioDevice>
+#include <QDateTime>
 #include <QDebug>
 #include <QFileInfo>
 #include <QMediaDevices>
@@ -77,7 +78,11 @@ bool AudioRouter::initialize() {
     return true;
   }
 
+  m_lastInitializeAttemptMs = QDateTime::currentMSecsSinceEpoch();
+
   Logger::instance().info(QStringLiteral("[AudioRouter] Initialising audio router"));
+  m_pipewireAvailable = false;
+  m_pulseaudioAvailable = false;
 
   // Try PipeWire first (modern, preferred backend)
   if (initializePipeWire()) {
@@ -95,7 +100,8 @@ bool AudioRouter::initialize() {
   // Enumerate available devices
   const auto& devices = QMediaDevices::audioOutputs();
   Logger::instance().info(
-      QString::asprintf("[AudioRouter] Found %lu audio output devices", devices.size()));
+      QString::asprintf("[AudioRouter] Found %lld audio output devices",
+              static_cast<long long>(devices.size())));
 
   for (const auto& device : devices) {
     Logger::instance().debug(QStringLiteral("[AudioRouter] Device: %1 (%2 channels)")
@@ -103,8 +109,41 @@ bool AudioRouter::initialize() {
                                  .arg(device.maximumChannelCount()));
   }
 
-  m_initialized = true;
-  return true;
+  m_initialized = m_pipewireAvailable || m_pulseaudioAvailable;
+  return m_initialized;
+}
+
+bool AudioRouter::shouldRetryInitialization() const {
+  const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+  return (nowMs - m_lastInitializeAttemptMs) >= kInitializeRetryIntervalMs;
+}
+
+bool AudioRouter::ensureAudioBackendReady(const char* callerTag) {
+  if (m_initialized) {
+    return true;
+  }
+
+  if (m_lastInitializeAttemptMs == 0 || shouldRetryInitialization()) {
+    Logger::instance().info(
+        QStringLiteral("[AudioRouter] Retrying backend initialization (%1)")
+            .arg(QString::fromUtf8(callerTag)));
+    if (initialize()) {
+      Logger::instance().info(
+          QStringLiteral("[AudioRouter] Backend recovered (%1)")
+              .arg(QString::fromUtf8(callerTag)));
+      return true;
+    }
+  }
+
+  const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+  if ((nowMs - m_lastInitializeFailureLogMs) >= kInitializeFailureLogIntervalMs) {
+    Logger::instance().warning(
+        QStringLiteral("[AudioRouter] Backend unavailable; still waiting (%1)")
+            .arg(QString::fromUtf8(callerTag)));
+    m_lastInitializeFailureLogMs = nowMs;
+  }
+
+  return false;
 }
 
 bool AudioRouter::initializePipeWire() {
@@ -199,7 +238,12 @@ bool AudioRouter::initializePulseAudio() {
 }
 
 bool AudioRouter::routeAudioFrame(AAudioStreamRole role, const QByteArray& audioData) {
-  if (!m_initialized || !m_mediaPipeline) {
+  if (!m_mediaPipeline) {
+    Logger::instance().error(QStringLiteral("[AudioRouter] MediaPipeline is null"));
+    return false;
+  }
+
+  if (!ensureAudioBackendReady("route")) {
     Logger::instance().warning(QStringLiteral("[AudioRouter] Audio router not initialised"));
     return false;
   }
@@ -233,7 +277,7 @@ bool AudioRouter::routeAudioFrame(AAudioStreamRole role, const QByteArray& audio
 }
 
 bool AudioRouter::setAudioDevice(AAudioStreamRole role, const QString& deviceId) {
-  if (!m_initialized) {
+  if (!ensureAudioBackendReady("set-device")) {
     Logger::instance().warning(QStringLiteral("[AudioRouter] Audio router not initialised"));
     return false;
   }
@@ -376,6 +420,8 @@ bool AudioRouter::shutdown() {
   }
 
   m_initialized = false;
+  m_pipewireAvailable = false;
+  m_pulseaudioAvailable = false;
   return true;
 }
 
