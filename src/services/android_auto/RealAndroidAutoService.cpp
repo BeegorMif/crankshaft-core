@@ -2776,33 +2776,84 @@ void RealAndroidAutoService::configureTransport(const QMap<QString, QVariant>& s
   m_videoWidthMargin = videoConfig.widthMargin;
   m_videoHeightMargin = videoConfig.heightMargin;
 
-  const QString forcedVideoTransportMode =
-      resolveSettingString(settings,
-                           QStringLiteral("video_transport_mode"),
-                           QStringLiteral("core.services.android_auto.video_transport_mode"),
-                           QStringLiteral("core.android_auto.video_transport_mode"),
-                           QStringLiteral("video_transport_mode"),
-                           QString());
-
+  const QString forcedCoreServicesMode =
+      settings.value(QStringLiteral("core.services.android_auto.video_transport_mode"))
+          .toString()
+          .trimmed();
+  const QString forcedCoreAndroidAutoMode =
+      settings.value(QStringLiteral("core.android_auto.video_transport_mode"))
+          .toString()
+          .trimmed();
+  const QString forcedLegacyMode =
+      settings.value(QStringLiteral("video_transport_mode")).toString().trimmed();
   const QString profileVideoTransportMode =
-      settings
-          .value(QStringLiteral("video_transport_mode"),
-                 settings.value(QStringLiteral("video.transport_mode"),
-                                settings.value(QStringLiteral("android_auto.video_transport_mode"),
-                                               QVariant())))
+      settings.value(QStringLiteral("video.transport_mode"),
+                     settings.value(QStringLiteral("android_auto.video_transport_mode"), QVariant()))
           .toString()
           .trimmed();
 
-  const QString requestedVideoTransportMode =
-      !forcedVideoTransportMode.isEmpty()
-          ? forcedVideoTransportMode
-          : (!profileVideoTransportMode.isEmpty() ? profileVideoTransportMode
-                                                  : QStringLiteral("webrtc"));
+  QString forcedVideoTransportMode;
+  QString forcedSource;
+  if (!forcedCoreServicesMode.isEmpty()) {
+    forcedVideoTransportMode = forcedCoreServicesMode;
+    forcedSource = QStringLiteral("core.services.android_auto.video_transport_mode");
+  } else if (!forcedCoreAndroidAutoMode.isEmpty()) {
+    forcedVideoTransportMode = forcedCoreAndroidAutoMode;
+    forcedSource = QStringLiteral("core.android_auto.video_transport_mode");
+  } else if (!forcedLegacyMode.isEmpty()) {
+    forcedVideoTransportMode = forcedLegacyMode;
+    forcedSource = QStringLiteral("video_transport_mode");
+  }
+
+  int forcedKeyCount = 0;
+  if (!forcedCoreServicesMode.isEmpty()) {
+    forcedKeyCount++;
+  }
+  if (!forcedCoreAndroidAutoMode.isEmpty()) {
+    forcedKeyCount++;
+  }
+  if (!forcedLegacyMode.isEmpty()) {
+    forcedKeyCount++;
+  }
+
+  if (forcedKeyCount > 1) {
+    Logger::instance().warning(
+        QString("[RealAndroidAutoService] Multiple forced transport keys detected; precedence is "
+                "core.services.android_auto.video_transport_mode > "
+                "core.android_auto.video_transport_mode > video_transport_mode "
+                "(values: core.services='%1', core.android_auto='%2', legacy='%3')")
+            .arg(forcedCoreServicesMode.isEmpty() ? QStringLiteral("<unset>") : forcedCoreServicesMode)
+            .arg(forcedCoreAndroidAutoMode.isEmpty() ? QStringLiteral("<unset>")
+                                                     : forcedCoreAndroidAutoMode)
+            .arg(forcedLegacyMode.isEmpty() ? QStringLiteral("<unset>") : forcedLegacyMode));
+  }
+
+  const QString requestedVideoTransportMode = !forcedVideoTransportMode.isEmpty()
+                                                 ? forcedVideoTransportMode
+                                                 : (!profileVideoTransportMode.isEmpty()
+                                                        ? profileVideoTransportMode
+                                                        : QStringLiteral("webrtc"));
 
   m_requestedVideoTransportMode =
       AndroidAutoService::videoTransportModeFromString(requestedVideoTransportMode);
   m_videoTransportMode = m_requestedVideoTransportMode;
   m_videoTransportFallbackReason.clear();
+
+  if (!profileVideoTransportMode.isEmpty()) {
+    Logger::instance().info(
+        QString("[RealAndroidAutoService] Profile transport candidate '%1' from key '%2'")
+            .arg(profileVideoTransportMode)
+            .arg(settings.value(QStringLiteral("video.transport_mode")).toString().trimmed().isEmpty()
+                     ? QStringLiteral("android_auto.video_transport_mode")
+                     : QStringLiteral("video.transport_mode")));
+  }
+
+  if (!forcedVideoTransportMode.isEmpty()) {
+    Logger::instance().info(
+        QString("[RealAndroidAutoService] Forced transport candidate '%1' from key '%2'")
+            .arg(forcedVideoTransportMode)
+            .arg(forcedSource));
+  }
 
   if (!forcedVideoTransportMode.isEmpty() &&
       !profileVideoTransportMode.isEmpty() &&
@@ -2814,6 +2865,12 @@ void RealAndroidAutoService::configureTransport(const QMap<QString, QVariant>& s
   }
   Logger::instance().info(QString("[RealAndroidAutoService] Configured video transport mode: %1")
                               .arg(AndroidAutoService::videoTransportModeToString(m_videoTransportMode)));
+  Logger::instance().info(
+      QString("[RealAndroidAutoService] Effective transport source: %1")
+          .arg(!forcedSource.isEmpty() ? forcedSource
+                                       : (!profileVideoTransportMode.isEmpty()
+                                              ? QStringLiteral("profile")
+                                              : QStringLiteral("default"))));
 
   Logger::instance().info(QString("[RealAndroidAutoService] Resolved startup profile: %1")
                               .arg(aaStartupProfileToString(resolveAAStartupProfile())));
