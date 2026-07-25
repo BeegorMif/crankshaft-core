@@ -234,6 +234,11 @@ class AndroidAutoService : public QObject {
    */
   virtual QJsonObject getAudioConfig() const = 0;
 
+  /**
+   * @brief Enable/disable night mode on the device
+   */
+  virtual bool setNightMode(bool enabled) = 0;
+
  signals:
   /**
    * @brief Emitted when connection state changes

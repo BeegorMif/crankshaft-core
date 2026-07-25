@@ -210,6 +210,13 @@ bool MockAndroidAutoService::setAudioEnabled(bool enabled) {
   return true;
 }
 
+bool MockAndroidAutoService::setNightMode(bool nightMode) {
+  m_nightMode = nightMode;
+  Logger::instance().info(
+      QString("[MockAndroidAutoService] Night mode set to %1").arg(nightMode ? "on" : "off"));
+  return true;
+}
+
 void MockAndroidAutoService::handleWebRtcSignalingMessage(const QString& topic,
                                                           const QVariantMap& payload) {
   Q_UNUSED(topic)

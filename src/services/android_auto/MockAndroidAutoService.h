@@ -72,6 +72,11 @@ class MockAndroidAutoService : public AndroidAutoService {
     return m_fps;
   }
 
+  bool setNightMode(bool nightMode) override;
+  bool getNightMode() const {
+    return m_nightMode;
+  }
+  
   bool sendTouchInput(int x, int y, int action) override;
   bool sendKeyInput(int key_code, int action) override;
 
@@ -121,6 +126,7 @@ class MockAndroidAutoService : public AndroidAutoService {
   QSize m_resolution{1024, 600};
   int m_fps{30};
   bool m_audioEnabled{true};
+  bool m_nightMode{false};
 
   // Mock behaviour settings
   int m_connectionDelayMs{1000};

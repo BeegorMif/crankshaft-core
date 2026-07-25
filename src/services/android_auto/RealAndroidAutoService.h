@@ -200,6 +200,8 @@ class RealAndroidAutoService : public AndroidAutoService {
   bool setAudioEnabled(bool enabled) override;
   QJsonObject getAudioConfig() const override;
 
+  bool setNightMode(bool nightMode) override;
+
   // Channel configuration
   struct ChannelConfig {
     bool videoEnabled{true};
@@ -286,6 +288,8 @@ class RealAndroidAutoService : public AndroidAutoService {
   void routeGuidanceAudioToVehicle(const QByteArray& audioData);
   void routeSystemAudioToVehicle(const QByteArray& audioData);
 
+  bool m_nightMode = false;
+  
   // AASDK callbacks
   void onVideoFrame(const uint8_t* data, int size, int width, int height);
   void onAudioData(const QByteArray& data);

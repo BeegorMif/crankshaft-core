@@ -554,7 +554,13 @@ void WebSocketServer::handlePublish(const QString& topic, const QVariantMap& pay
               QString("[WebSocketServer] Received display framerate update from UI: %1 fps")
                   .arg(fps));
           aaService->setFramerate(fps);
-        }
+        }      
+      } else if (topic == QStringLiteral("android-auto/display/nightMode")) {
+        const bool nightMode = payload.value(QStringLiteral("nightMode")).toBool();
+        Logger::instance().info(
+            QString("[WebSocketServer] Received night mode update from UI: %1")
+                .arg(nightMode ? QStringLiteral("on") : QStringLiteral("off")));
+        aaService->setNightMode(nightMode);
       } else if (topic == QStringLiteral("android-auto/touch")) {
         const QSize displayResolution = aaService->getDisplayResolution();
         const double rawX = payload.value(QStringLiteral("x")).toDouble();

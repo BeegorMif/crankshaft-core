@@ -2368,8 +2368,8 @@ class AASensorEventHandler final
         break;
       }
       case aap_protobuf::service::sensorsource::message::SENSOR_NIGHT_MODE:
-        indication.add_night_mode_data()->set_night_mode(false);
-        break;
+        indication.add_night_mode_data()->set_night_mode(m_service ? m_service->m_nightMode : false);
+      break;
       default:
         return;
     }
@@ -4462,7 +4462,39 @@ bool RealAndroidAutoService::setFramerate(int fps) {
   Logger::instance().info(QString("Framerate set to %1").arg(fps));
   return true;
 }
+bool RealAndroidAutoService::setNightMode(bool nightMode) {
+  m_nightMode = nightMode;
 
+  if (!isConnected() || !m_sensorChannel || !m_strand) {
+    Logger::instance().warning(
+        "[RealAndroidAutoService] Cannot send night mode: not connected or sensor channel "
+        "unavailable (value cached for next sensor start)");
+    return false;
+  }
+
+  aap_protobuf::service::sensorsource::message::SensorBatch indication;
+  indication.add_night_mode_data()->set_night_mode(nightMode);
+
+  auto promise = aasdk::channel::SendPromise::defer(*m_strand);
+  promise->then(
+      [nightMode]() {
+        aaLogInfo("sensorChannel",
+                  QString("Night mode sensor event sent (nightMode=%1)")
+                      .arg(nightMode ? "true" : "false"));
+      },
+      [self = QPointer<RealAndroidAutoService>(this)](const aasdk::error::Error& error) {
+        if (self) {
+          self->onChannelError(QStringLiteral("sensor"), QString::fromStdString(error.what()));
+        }
+      });
+
+  m_sensorChannel->sendSensorEventIndication(indication, std::move(promise));
+
+  aaLogInfo("sensorChannel",
+            QString("Sending night mode sensor event: %1").arg(nightMode ? "on" : "off"));
+
+  return true;
+}
 bool RealAndroidAutoService::sendTouchInput(int x, int y, int action) {
   if (!isConnected() || !m_inputChannel) {
     Logger::instance().warning("Cannot send touch input: not connected or input channel disabled");
