@@ -63,6 +63,7 @@
 #include <aasdk/Channel/MediaSink/Video/Channel/VideoChannel.hpp>
 #include <aasdk/Channel/MediaSource/Audio/MicrophoneAudioChannel.hpp>
 #include <aasdk/Channel/SensorSource/SensorSourceService.hpp>
+#include <aasdk/Channel/NavigationStatus/NavigationStatusService.hpp>
 #include <aasdk/Channel/WifiProjection/WifiProjectionService.hpp>
 #include <aasdk/Common/ModernLogger.hpp>
 #include <aasdk/Messenger/ChannelId.hpp>
@@ -158,7 +159,7 @@ static auto shouldEmitChannelDebugSample(quint64* sampleCounter, qint64* lastEmi
 static auto describeChannelConfig(const RealAndroidAutoService::ChannelConfig& config) -> QString {
   return QStringLiteral(
              "video=%1, mediaAudio=%2, systemAudio=%3, speechAudio=%4, "
-             "telephonyAudio=%5, microphone=%6, input=%7, sensor=%8, bluetooth=%9")
+             "telephonyAudio=%5, microphone=%6, input=%7, sensor=%8, navigation=%9, bluetooth=%10")
       .arg(config.videoEnabled ? QStringLiteral("on") : QStringLiteral("off"))
       .arg(config.mediaAudioEnabled ? QStringLiteral("on") : QStringLiteral("off"))
       .arg(config.systemAudioEnabled ? QStringLiteral("on") : QStringLiteral("off"))
@@ -167,6 +168,7 @@ static auto describeChannelConfig(const RealAndroidAutoService::ChannelConfig& c
       .arg(config.microphoneEnabled ? QStringLiteral("on") : QStringLiteral("off"))
       .arg(config.inputEnabled ? QStringLiteral("on") : QStringLiteral("off"))
       .arg(config.sensorEnabled ? QStringLiteral("on") : QStringLiteral("off"))
+      .arg(config.navigationEnabled ? QStringLiteral("on") : QStringLiteral("off"))
       .arg(config.bluetoothEnabled ? QStringLiteral("on") : QStringLiteral("off"));
 }
 
@@ -891,6 +893,18 @@ static void appendSensorSourceFeature(
       aap_protobuf::service::sensorsource::message::SensorType::SENSOR_LOCATION);
   sensorService->add_sensors()->set_sensor_type(
       aap_protobuf::service::sensorsource::message::SensorType::SENSOR_NIGHT_MODE);
+}
+
+static void appendNavigationStatusFeature(
+    aap_protobuf::service::control::message::ServiceDiscoveryResponse& response,
+    const std::shared_ptr<aasdk::channel::navigationstatus::NavigationStatusService>& navChannel) {
+  if (!navChannel) {
+    return;
+  }
+
+  auto* service = response.add_channels();
+  service->set_id(static_cast<uint32_t>(navChannel->getId()));
+  service->mutable_navigation_status_service();  // verify exact oneof accessor name
 }
 
 static void appendBluetoothFeature(
@@ -2397,6 +2411,117 @@ class AASensorEventHandler final
   QPointer<RealAndroidAutoService> m_service;
 };
 
+class AANavigationEventHandler final
+    : public aasdk::channel::navigationstatus::INavigationStatusServiceEventHandler,
+      public std::enable_shared_from_this<AANavigationEventHandler> {
+ public:
+  explicit AANavigationEventHandler(RealAndroidAutoService* service) : m_service(service) {}
+
+  void onChannelOpenRequest(
+      const aap_protobuf::service::control::message::ChannelOpenRequest& request) override {
+    Q_UNUSED(request)
+    if (!m_service || !m_service->m_navigationChannel || !m_service->m_strand) {
+      return;
+    }
+
+    aap_protobuf::service::control::message::ChannelOpenResponse response;
+    response.set_status(aap_protobuf::shared::MessageStatus::STATUS_SUCCESS);
+
+    auto promise = aasdk::channel::SendPromise::defer(*m_service->m_strand);
+    promise->then([]() {}, [self = shared_from_this()](
+                               const aasdk::error::Error& error) { self->onChannelError(error); });
+
+    m_service->m_navigationChannel->sendChannelOpenResponse(response, std::move(promise));
+    aaLogInfo("navigationChannel", "Navigation channel open request accepted");
+    armReceive();
+  }
+
+  // TODO: confirm exact message type from INavigationStatusServiceEventHandler.hpp
+  void onStatusUpdate(
+      const aap_protobuf::service::navigationstatus::message::NavigationStatus& status) override {
+    Q_UNUSED(status)
+    armReceive();
+  }
+
+  void onTurnEvent(
+    const aap_protobuf::service::navigationstatus::message::NavigationNextTurnEvent& turnEvent) override {
+    if (!m_service) {
+      armReceive();
+      return;
+    }
+
+    QVariantMap payload;
+    payload[QStringLiteral("timestamp")] = QDateTime::currentSecsSinceEpoch();
+    payload[QStringLiteral("road")] = QString::fromStdString(turnEvent.road());
+    payload[QStringLiteral("event")] = static_cast<int>(turnEvent.event());
+    if (turnEvent.has_turn_side()) {
+      payload[QStringLiteral("turn_side")] = static_cast<int>(turnEvent.turn_side());
+    }
+    if (turnEvent.has_turn_number()) {
+      payload[QStringLiteral("turn_number")] = turnEvent.turn_number();
+    }
+    if (turnEvent.has_turn_angle()) {
+      payload[QStringLiteral("turn_angle")] = turnEvent.turn_angle();
+    }
+
+    emit m_service->navigationTurnReceived(payload);
+    aaLogInfo("navigationChannel",
+              QString("Turn event: road=%1").arg(QString::fromStdString(turnEvent.road())));
+    armReceive();
+  }
+
+  void onDistanceEvent(
+      const aap_protobuf::service::navigationstatus::message::NavigationNextTurnDistanceEvent&
+          distanceEvent) override {
+    if (!m_service) {
+      armReceive();
+      return;
+    }
+
+    QVariantMap payload;
+    payload[QStringLiteral("timestamp")] = QDateTime::currentSecsSinceEpoch();
+    payload[QStringLiteral("meters")] = distanceEvent.distance_meters();
+    payload[QStringLiteral("seconds")] = distanceEvent.time_to_turn_seconds();
+    if (distanceEvent.has_display_distance_e3()) {
+      payload[QStringLiteral("display_distance")] = distanceEvent.display_distance_e3() / 1000.0;
+    }
+    if (distanceEvent.has_display_distance_unit()) {
+      payload[QStringLiteral("display_distance_unit")] =
+          static_cast<int>(distanceEvent.display_distance_unit());
+    }
+
+    emit m_service->navigationDistanceReceived(payload);
+    armReceive();
+  }
+
+  void onChannelError(const aasdk::error::Error& e) override {
+    if (!m_service || m_service->m_aasdkTeardownInProgress) {
+      return;
+    }
+
+    if (isRecoverableUsbReceiveError(e) || isRecoverableMessengerIntertwinedChannelError(e)) {
+      auto self = shared_from_this();
+      QTimer::singleShot(120, m_service, [self]() { self->armReceive(); });
+      return;
+    }
+
+    if (isOperationInProgressError(e)) {
+      return;
+    }
+
+    m_service->onChannelError(QStringLiteral("navigation"), QString::fromStdString(e.what()));
+  }
+
+ private:
+  void armReceive() {
+    if (m_service && !m_service->m_aasdkTeardownInProgress && m_service->m_navigationChannel) {
+      m_service->m_navigationChannel->receive(shared_from_this());
+    }
+  }
+
+  QPointer<RealAndroidAutoService> m_service;
+};
+
 class AAMicrophoneEventHandler final
     : public aasdk::channel::mediasource::IMediaSourceServiceEventHandler,
       public std::enable_shared_from_this<AAMicrophoneEventHandler> {
@@ -3261,7 +3386,15 @@ void RealAndroidAutoService::setupChannels() {
           *m_strand, m_messenger);
       Logger::instance().info("Sensor channel enabled");
     }
-
+    
+    // Create navigation status channel
+    if (m_channelConfig.navigationEnabled) {
+      m_navigationChannel = std::make_shared<aasdk::channel::navigationstatus::NavigationStatusService>(
+          *m_strand, m_messenger);
+      m_navigationEventHandler = std::make_shared<AANavigationEventHandler>(this);
+      m_navigationChannel->receive(m_navigationEventHandler);
+      Logger::instance().info("Navigation status channel enabled");
+    }
     // Create bluetooth channel
     if (m_channelConfig.bluetoothEnabled) {
       m_bluetoothChannel =
@@ -3275,7 +3408,6 @@ void RealAndroidAutoService::setupChannels() {
                                                                                    m_messenger);
       Logger::instance().info("WiFi projection channel enabled");
     }
-
     // Initialize video decoder
     if (m_channelConfig.videoEnabled) {
       m_videoDecoder = std::make_unique<GStreamerVideoDecoder>(this);
@@ -4630,6 +4762,7 @@ void RealAndroidAutoService::setChannelConfig(const ChannelConfig& config) {
                         m_channelConfig.speechAudioEnabled != config.speechAudioEnabled ||
                         m_channelConfig.inputEnabled != config.inputEnabled ||
                         m_channelConfig.sensorEnabled != config.sensorEnabled ||
+                        m_channelConfig.navigationEnabled != config.navigationEnabled ||
                         m_channelConfig.bluetoothEnabled != config.bluetoothEnabled);
 
   m_channelConfig = config;
@@ -5164,6 +5297,10 @@ void RealAndroidAutoService::armOptionalChannelReceivesAfterPrimaryStart() {
     traceChannelReceiveArm(QStringLiteral("bluetooth"), QStringLiteral("optional_channels"));
     m_bluetoothChannel->receive(m_bluetoothEventHandler);
   }
+  if (m_navigationChannel && m_navigationEventHandler) {
+    traceChannelReceiveArm(QStringLiteral("navigation"), QStringLiteral("optional_channels"));
+    m_navigationChannel->receive(m_navigationEventHandler);
+  }
   if (m_wifiProjectionChannel && m_wifiProjectionEventHandler) {
     traceChannelReceiveArm(QStringLiteral("wifiProjection"), QStringLiteral("optional_channels"));
     m_wifiProjectionChannel->receive(m_wifiProjectionEventHandler);
@@ -5205,6 +5342,7 @@ void RealAndroidAutoService::traceServiceDiscoveryResponse() const {
   appendChannel(QStringLiteral("telephonyAudio"), m_telephonyAudioChannel);
   appendChannel(QStringLiteral("input"), m_inputChannel);
   appendChannel(QStringLiteral("sensor"), m_sensorChannel);
+  appendChannel(QStringLiteral("navigation"), m_navigationChannel);
   appendChannel(QStringLiteral("bluetooth"), m_bluetoothChannel);
   appendChannel(QStringLiteral("microphone"), m_microphoneChannel);
 
@@ -5229,6 +5367,9 @@ void RealAndroidAutoService::traceServiceDiscoveryResponse() const {
   capabilityFlags.append(
       QStringLiteral("sensor=%1")
           .arg(m_channelConfig.sensorEnabled ? QStringLiteral("on") : QStringLiteral("off")));
+  capabilityFlags.append(
+      QStringLiteral("navigation=%1")
+          .arg(m_channelConfig.navigationEnabled ? QStringLiteral("on") : QStringLiteral("off")));
   capabilityFlags.append(
       QStringLiteral("microphone=%1")
           .arg(m_channelConfig.microphoneEnabled ? QStringLiteral("on") : QStringLiteral("off")));
@@ -6669,6 +6810,7 @@ void RealAndroidAutoService::publishProjectionStatus(const QString& reason) {
   status[QStringLiteral("telephony_audio_enabled")] = m_channelConfig.telephonyAudioEnabled;
   status[QStringLiteral("input_enabled")] = m_channelConfig.inputEnabled;
   status[QStringLiteral("sensor_enabled")] = m_channelConfig.sensorEnabled;
+  status[QStringLiteral("diagnostic_enabled")] = m_channelConfig.navigationEnabled;
   status[QStringLiteral("microphone_enabled")] = m_channelConfig.microphoneEnabled;
   status[QStringLiteral("projection_ready")] = projectionReady;
   status[QStringLiteral("timestamp")] = QDateTime::currentSecsSinceEpoch();

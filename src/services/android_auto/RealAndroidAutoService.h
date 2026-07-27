@@ -40,6 +40,7 @@ class AAVideoEventHandler;
 class AAAudioEventHandler;
 class AAInputEventHandler;
 class AASensorEventHandler;
+class AANavigationEventHandler;
 class AAMicrophoneEventHandler;
 class AABluetoothEventHandler;
 class AAWifiProjectionEventHandler;
@@ -103,6 +104,10 @@ namespace sensorsource {
 class ISensorSourceServiceEventHandler;
 class SensorSourceService;
 }  // namespace sensorsource
+namespace navigationstatus {
+  class INavigationStatusServiceEventHandler;
+  class NavigationStatusService;
+}  // namespace navigationstatus
 namespace bluetooth {
 class IBluetoothServiceEventHandler;
 class BluetoothService;
@@ -210,6 +215,7 @@ class RealAndroidAutoService : public AndroidAutoService {
     bool microphoneEnabled{true};
     bool inputEnabled{true};
     bool sensorEnabled{true};
+    bool navigationEnabled{true};
     bool bluetoothEnabled{false};
   };
 
@@ -231,6 +237,7 @@ class RealAndroidAutoService : public AndroidAutoService {
   friend class AAMicrophoneEventHandler;
   friend class AAInputEventHandler;
   friend class AASensorEventHandler;
+  friend class AANavigationEventHandler;
   friend class AABluetoothEventHandler;
   friend class AAWifiProjectionEventHandler;
 
@@ -476,6 +483,8 @@ class RealAndroidAutoService : public AndroidAutoService {
       m_telephonyAudioChannel;
   std::shared_ptr<aasdk::channel::inputsource::InputSourceService> m_inputChannel;
   std::shared_ptr<aasdk::channel::sensorsource::SensorSourceService> m_sensorChannel;
+  std::shared_ptr<aasdk::channel::navigationstatus::NavigationStatusService> m_navigationChannel;
+  std::shared_ptr<AANavigationEventHandler> m_navigationEventHandler;
   std::shared_ptr<aasdk::channel::bluetooth::BluetoothService> m_bluetoothChannel;
   std::shared_ptr<aasdk::channel::wifiprojection::IWifiProjectionService>
       m_wifiProjectionChannel;

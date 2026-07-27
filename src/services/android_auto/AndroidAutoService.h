@@ -287,6 +287,18 @@ class AndroidAutoService : public QObject {
    * @brief Emitted when projection channel readiness changes
    */
   void projectionStatusChanged(const QJsonObject& status);
+
+  /**
+   * @brief Emitted when a navigation turn is received
+   * @param turn Navigation turn data
+   */
+  void navigationTurnReceived(const QVariantMap& turn);
+
+  /**
+   * @brief Emitted when navigation distance is received
+   * @param distance Navigation distance data
+   */
+  void navigationDistanceReceived(const QVariantMap& distance);
 };
 
 using AndroidAutoServicePtr = std::shared_ptr<AndroidAutoService>;
