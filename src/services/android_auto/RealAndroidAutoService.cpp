@@ -1496,6 +1496,7 @@ class AAControlEventHandler final
                            16000, 1);
     appendInputSourceFeature(response, m_service->m_inputChannel, m_service->m_resolution);
     appendSensorSourceFeature(response, m_service->m_sensorChannel);
+    appendNavigationStatusFeature(response, m_service->m_navigationChannel);
     appendBluetoothFeature(response, m_service->m_bluetoothChannel);
     appendWifiProjectionFeature(response, m_service->m_wifiProjectionChannel,
                   m_service->m_wirelessHotspotBssid);
@@ -2424,6 +2425,11 @@ class AANavigationEventHandler final
       const aap_protobuf::service::control::message::ChannelOpenRequest& request) override {
     Q_UNUSED(request)
     if (!m_service || !m_service->m_navigationChannel || !m_service->m_strand) {
+      aaLogInfo("navigationChannel",
+                QString("Channel open request ignored: service=%1 channel=%2 strand=%3")
+                    .arg(m_service != nullptr)
+                    .arg(m_service && m_service->m_navigationChannel)
+                    .arg(m_service && m_service->m_strand));
       return;
     }
 
@@ -2494,9 +2500,12 @@ class AANavigationEventHandler final
     }
 
     emit m_service->navigationDistanceReceived(payload);
+    aaLogInfo("navigationChannel",
+              QString("Distance event: meters=%1 seconds=%2")
+                  .arg(distanceEvent.distance_meters())
+                  .arg(distanceEvent.time_to_turn_seconds()));
     armReceive();
   }
-
   void onChannelError(const aasdk::error::Error& e) override {
     if (!m_service || m_service->m_aasdkTeardownInProgress) {
       return;
