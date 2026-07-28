@@ -289,16 +289,14 @@ class AndroidAutoService : public QObject {
   void projectionStatusChanged(const QJsonObject& status);
 
   /**
-   * @brief Emitted when a navigation turn is received
-   * @param turn Navigation turn data
+   * @brief Emitted when navigation state changes
    */
-  void navigationTurnReceived(const QVariantMap& turn);
+  void navigationState(const QVariantMap& navState);
 
   /**
-   * @brief Emitted when navigation distance is received
-   * @param distance Navigation distance data
+   * @brief Emitted when current position changes
    */
-  void navigationDistanceReceived(const QVariantMap& distance);
+  void currentPosition(const QVariantMap& currentPosition);
 };
 
 using AndroidAutoServicePtr = std::shared_ptr<AndroidAutoService>;

@@ -1190,15 +1190,23 @@ void WebSocketServer::setupAndroidAutoConnections() {
       [this](const QString& topic, const QVariantMap& payload) {
         broadcastEvent(topic, payload);
       });
-  connect(aaService, &AndroidAutoService::navigationTurnReceived, this,
-        [this](const QVariantMap& turn) {
-          broadcastEvent(QStringLiteral("android-auto/navigation/turn"), turn);
-        });
-  connect(aaService, &AndroidAutoService::navigationDistanceReceived, this,
-        [this](const QVariantMap& distance) {
-          broadcastEvent(QStringLiteral("android-auto/navigation/distance"), distance);
-        });
+  connect(aaService,
+          &AndroidAutoService::navigationState,
+          this,
+          [this](const QVariantMap& navState) {
+              broadcastEvent(
+                  QStringLiteral("android-auto/navigation/state"),
+                  navState);
+          });
 
+  connect(aaService,
+          &AndroidAutoService::currentPosition,
+          this,
+          [this](const QVariantMap& currentPosition) {
+              broadcastEvent(
+                  QStringLiteral("android-auto/navigation/current-position"),
+                  currentPosition);
+          });
   Logger::instance().info("[WebSocketServer] Android Auto service connections setup");
 }
 

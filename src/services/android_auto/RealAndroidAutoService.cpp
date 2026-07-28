@@ -2454,67 +2454,252 @@ class AANavigationEventHandler final
     armReceive();
   }
 
-  // TODO: confirm exact message type from INavigationStatusServiceEventHandler.hpp
-  void onStatusUpdate(
-      const aap_protobuf::service::navigationstatus::message::NavigationStatus& status) override {
-    Q_UNUSED(status)
-    armReceive();
-  }
+  void onNavigationState(
+      const aap_protobuf::service::navigationstatus::message::NavigationState& navState) override
+  {
+      if (!m_service)
+          return;
 
-  void onTurnEvent(
-    const aap_protobuf::service::navigationstatus::message::NavigationNextTurnEvent& turnEvent) override {
-    if (!m_service) {
+      aaLogInfo("navigationChannel", "Navigation state received");
+
+      QVariantMap state;
+
+      //
+      // Steps
+      //
+      QVariantList steps;
+
+      for (const auto& step : navState.steps())
+      {
+          QVariantMap stepMap;
+
+          // Road
+          if (step.has_road())
+          {
+              stepMap["road"] =
+                  QString::fromStdString(step.road().name());
+          }
+
+          // Maneuver
+          if (step.has_maneuver())
+          {
+              QVariantMap maneuver;
+
+              const auto& m = step.maneuver();
+
+              if (m.has_type())
+                  maneuver["type"] = static_cast<int>(m.type());
+
+              if (m.has_roundabout_exit_number())
+                  maneuver["exitNumber"] =
+                      m.roundabout_exit_number();
+
+              if (m.has_roundabout_exit_angle())
+                  maneuver["exitAngle"] =
+                      m.roundabout_exit_angle();
+
+              stepMap["maneuver"] = maneuver;
+          }
+
+          // Cue text
+          if (step.has_cue())
+          {
+              QVariantList cue;
+
+              for (const auto& text : step.cue().alternate_text())
+                  cue.append(QString::fromStdString(text));
+
+              if (!cue.isEmpty())
+                  stepMap["cue"] = cue;
+          }
+
+          // Lane guidance
+          if (step.lanes_size() > 0)
+          {
+              QVariantList lanes;
+
+              for (const auto& lane : step.lanes())
+              {
+                  QVariantMap laneMap;
+                  QVariantList directions;
+
+                  for (const auto& dir : lane.lane_directions())
+                  {
+                      QVariantMap direction;
+
+                      if (dir.has_shape())
+                          direction["shape"] =
+                              static_cast<int>(dir.shape());
+
+                      if (dir.has_is_highlighted())
+                          direction["highlighted"] =
+                              dir.is_highlighted();
+
+                      directions.append(direction);
+                  }
+
+                  if (!directions.isEmpty())
+                      laneMap["directions"] = directions;
+
+                  lanes.append(laneMap);
+              }
+
+              if (!lanes.isEmpty())
+                  stepMap["lanes"] = lanes;
+          }
+
+          steps.append(stepMap);
+      }
+
+      if (!steps.isEmpty())
+          state["steps"] = steps;
+
+      //
+      // Destinations
+      //
+      QVariantList destinations;
+
+      for (const auto& d : navState.destinations())
+      {
+          QVariantMap destination;
+
+          if (d.has_address())
+              destination["address"] =
+                  QString::fromStdString(d.address());
+
+          if (!destination.isEmpty())
+              destinations.append(destination);
+      }
+
+      if (!destinations.isEmpty())
+          state["destinations"] = destinations;
+
+      emit m_service->navigationState(state);
+
       armReceive();
-      return;
-    }
-
-    QVariantMap payload;
-    payload[QStringLiteral("timestamp")] = QDateTime::currentSecsSinceEpoch();
-    payload[QStringLiteral("road")] = QString::fromStdString(turnEvent.road());
-    payload[QStringLiteral("event")] = static_cast<int>(turnEvent.event());
-    if (turnEvent.has_turn_side()) {
-      payload[QStringLiteral("turn_side")] = static_cast<int>(turnEvent.turn_side());
-    }
-    if (turnEvent.has_turn_number()) {
-      payload[QStringLiteral("turn_number")] = turnEvent.turn_number();
-    }
-    if (turnEvent.has_turn_angle()) {
-      payload[QStringLiteral("turn_angle")] = turnEvent.turn_angle();
-    }
-
-    emit m_service->navigationTurnReceived(payload);
-    aaLogInfo("navigationChannel",
-              QString("Turn event: road=%1").arg(QString::fromStdString(turnEvent.road())));
-    armReceive();
   }
 
-  void onDistanceEvent(
-      const aap_protobuf::service::navigationstatus::message::NavigationNextTurnDistanceEvent&
-          distanceEvent) override {
-    if (!m_service) {
+  void onCurrentPosition(
+      const aap_protobuf::service::navigationstatus::message::NavigationCurrentPosition& currentPosition) override
+  {
+      if (!m_service)
+          return;
+
+      aaLogInfo("navigationChannel", "Current position received");
+
+      QVariantMap position;
+
+      //
+      // Distance to next step
+      //
+      if (currentPosition.has_step_distance())
+      {
+          QVariantMap stepDistance;
+
+          const auto& sd = currentPosition.step_distance();
+
+          if (sd.has_distance())
+          {
+              QVariantMap distance;
+
+              const auto& d = sd.distance();
+
+              if (d.has_meters())
+                  distance["meters"] = d.meters();
+
+              if (d.has_display_value())
+                  distance["display"] =
+                      QString::fromStdString(
+                          d.display_value());
+
+              if (d.has_display_units())
+                  distance["units"] =
+                      static_cast<int>(
+                          d.display_units());
+
+              if (!distance.isEmpty())
+                  stepDistance["distance"] = distance;
+          }
+
+          if (sd.has_time_to_step_seconds())
+              stepDistance["seconds"] =
+                  static_cast<qint64>(
+                      sd.time_to_step_seconds());
+
+          if (!stepDistance.isEmpty())
+              position["stepDistance"] = stepDistance;
+      }
+
+      //
+      // Current road
+      //
+      if (currentPosition.has_current_road())
+      {
+          QVariantMap road;
+
+          if (currentPosition.current_road().has_name())
+              road["name"] =
+                  QString::fromStdString(
+                      currentPosition.current_road().name());
+
+          if (!road.isEmpty())
+              position["currentRoad"] = road;
+      }
+
+      //
+      // Destinations
+      //
+      QVariantList destinations;
+
+      for (const auto& dest : currentPosition.destination_distances())
+      {
+          QVariantMap destination;
+
+          if (dest.has_distance())
+          {
+              QVariantMap distance;
+
+              const auto& d = dest.distance();
+
+              if (d.has_meters())
+                  distance["meters"] = d.meters();
+
+              if (d.has_display_value())
+                  distance["display"] =
+                      QString::fromStdString(
+                          d.display_value());
+
+              if (d.has_display_units())
+                  distance["units"] =
+                      static_cast<int>(
+                          d.display_units());
+
+              if (!distance.isEmpty())
+                  destination["distance"] = distance;
+          }
+
+          if (dest.has_estimated_time_at_arrival())
+              destination["eta"] =
+                  QString::fromStdString(
+                      dest.estimated_time_at_arrival());
+
+          if (dest.has_time_to_arrival_seconds())
+              destination["seconds"] =
+                  static_cast<qint64>(
+                      dest.time_to_arrival_seconds());
+
+          if (!destination.isEmpty())
+              destinations.append(destination);
+      }
+
+      if (!destinations.isEmpty())
+          position["destinations"] = destinations;
+
+      emit m_service->currentPosition(position);
+
       armReceive();
-      return;
-    }
-
-    QVariantMap payload;
-    payload[QStringLiteral("timestamp")] = QDateTime::currentSecsSinceEpoch();
-    payload[QStringLiteral("meters")] = distanceEvent.distance_meters();
-    payload[QStringLiteral("seconds")] = distanceEvent.time_to_turn_seconds();
-    if (distanceEvent.has_display_distance_e3()) {
-      payload[QStringLiteral("display_distance")] = distanceEvent.display_distance_e3() / 1000.0;
-    }
-    if (distanceEvent.has_display_distance_unit()) {
-      payload[QStringLiteral("display_distance_unit")] =
-          static_cast<int>(distanceEvent.display_distance_unit());
-    }
-
-    emit m_service->navigationDistanceReceived(payload);
-    aaLogInfo("navigationChannel",
-              QString("Distance event: meters=%1 seconds=%2")
-                  .arg(distanceEvent.distance_meters())
-                  .arg(distanceEvent.time_to_turn_seconds()));
-    armReceive();
   }
+
   void onChannelError(const aasdk::error::Error& e) override {
     if (!m_service || m_service->m_aasdkTeardownInProgress) {
       return;
