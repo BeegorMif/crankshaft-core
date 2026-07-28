@@ -695,6 +695,9 @@ static auto resolveAndroidAutoChannelConfig(const QMap<QString, QVariant>& setti
   resolved.sensorEnabled = resolveSettingBool(
       settings, "channels.sensor_enabled", "core.services.android_auto.channels.sensor_enabled",
       "core.android_auto.channels.sensor_enabled", defaultWhenMissing);
+  resolved.navigationEnabled = resolveSettingBool(
+      settings, "channels.navigation_enabled", "core.services.android_auto.channels.navigation_enabled",
+      "core.android_auto.channels.navigation_enabled", defaultWhenMissing);
   resolved.bluetoothEnabled =
       resolveSettingBool(settings, "channels.bluetooth_enabled",
                          "core.services.android_auto.channels.bluetooth_enabled",

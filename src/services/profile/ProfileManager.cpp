@@ -100,6 +100,7 @@ void ProfileManager::initializeDefaultProfiles() {
   androidAutoDevice.settings["channels.microphone"] = true;
   androidAutoDevice.settings["channels.input"] = true;
   androidAutoDevice.settings["channels.sensor"] = true;
+  androidAutoDevice.settings["channels.navigation"] = true;
   androidAutoDevice.settings["channels.bluetooth"] = false;  // Disabled by default
 
   // Connection mode: "auto", "usb", "wireless"
@@ -119,7 +120,7 @@ void ProfileManager::initializeDefaultProfiles() {
   DeviceConfig bluetoothDevice;
   bluetoothDevice.name = "Bluetooth";
   bluetoothDevice.type = "Bluetooth";
-  bluetoothDevice.enabled = true;
+  bluetoothDevice.enabled = false;
   bluetoothDevice.useMock = false;
   bluetoothDevice.description = "Bluetooth connectivity";
   devHostProfile.devices.append(bluetoothDevice);
@@ -127,7 +128,7 @@ void ProfileManager::initializeDefaultProfiles() {
   DeviceConfig wifiDevice;
   wifiDevice.name = "WiFi";
   wifiDevice.type = "WiFi";
-  wifiDevice.enabled = true;
+  wifiDevice.enabled = false;
   wifiDevice.useMock = false;
   wifiDevice.description = "WiFi connectivity";
   devHostProfile.devices.append(wifiDevice);
