@@ -115,7 +115,14 @@ bool SessionStore::createDevice(const QString& deviceId, const QVariantMap& devi
   query.prepare(QStringLiteral(
       "INSERT INTO android_devices "
       "(id, model, android_version, connection_type, paired, last_seen, capabilities) "
-      "VALUES (?, ?, ?, ?, ?, ?, ?)"));
+      "VALUES (?, ?, ?, ?, ?, ?, ?) "
+      "ON CONFLICT(id) DO UPDATE SET "
+      "model = excluded.model, "
+      "android_version = excluded.android_version, "
+      "connection_type = excluded.connection_type, "
+      "paired = excluded.paired, "
+      "last_seen = excluded.last_seen, "
+      "capabilities = excluded.capabilities"));
 
   query.addBindValue(deviceId);
   query.addBindValue(deviceInfo.value("model", "").toString());
@@ -129,12 +136,12 @@ bool SessionStore::createDevice(const QString& deviceId, const QVariantMap& devi
   query.addBindValue(QString::fromUtf8(capabilitiesDoc.toJson(QJsonDocument::Compact)));
 
   if (!query.exec()) {
-    Logger::instance().error(QString("[SessionStore] Failed to create device %1: %2")
+    Logger::instance().error(QString("[SessionStore] Failed to create/update device %1: %2")
                                  .arg(deviceId, query.lastError().text()));
     return false;
   }
 
-  Logger::instance().info(QString("[SessionStore] Created device: %1").arg(deviceId));
+  Logger::instance().info(QString("[SessionStore] Upserted device: %1").arg(deviceId));
   return true;
 }
 
