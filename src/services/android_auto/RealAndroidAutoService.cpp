@@ -907,7 +907,16 @@ static void appendNavigationStatusFeature(
 
   auto* service = response.add_channels();
   service->set_id(static_cast<uint32_t>(navChannel->getId()));
-  service->mutable_navigation_status_service();  // verify exact oneof accessor name
+
+  auto* navService = service->mutable_navigation_status_service();
+  navService->set_minimum_interval_ms(1000);
+  navService->set_type(
+      aap_protobuf::service::navigationstatus::NavigationStatusService::IMAGE);
+
+  auto* imageOptions = navService->mutable_image_options();
+  imageOptions->set_width(256);
+  imageOptions->set_height(256);
+  imageOptions->set_colour_depth_bits(32);
 }
 
 static void appendBluetoothFeature(
