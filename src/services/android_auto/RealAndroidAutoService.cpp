@@ -64,6 +64,7 @@
 #include <aasdk/Channel/MediaSource/Audio/MicrophoneAudioChannel.hpp>
 #include <aasdk/Channel/SensorSource/SensorSourceService.hpp>
 #include <aasdk/Channel/NavigationStatus/NavigationStatusService.hpp>
+#include <aasdk/Channel/MediaPlaybackStatus/MediaPlaybackStatusService.hpp>
 #include <aasdk/Channel/WifiProjection/WifiProjectionService.hpp>
 #include <aasdk/Common/ModernLogger.hpp>
 #include <aasdk/Messenger/ChannelId.hpp>
@@ -169,7 +170,8 @@ static auto describeChannelConfig(const RealAndroidAutoService::ChannelConfig& c
       .arg(config.inputEnabled ? QStringLiteral("on") : QStringLiteral("off"))
       .arg(config.sensorEnabled ? QStringLiteral("on") : QStringLiteral("off"))
       .arg(config.navigationEnabled ? QStringLiteral("on") : QStringLiteral("off"))
-      .arg(config.bluetoothEnabled ? QStringLiteral("on") : QStringLiteral("off"));
+      .arg(config.bluetoothEnabled ? QStringLiteral("on") : QStringLiteral("off"))
+      .arg(config.mediaPlaybackEnabled ? QStringLiteral("on") : QStringLiteral("off"));
 }
 
 static auto parseUsbVendorIdToken(const QString& token, const QString& key, bool* ok) -> uint16_t {
@@ -702,7 +704,10 @@ static auto resolveAndroidAutoChannelConfig(const QMap<QString, QVariant>& setti
       resolveSettingBool(settings, "channels.bluetooth_enabled",
                          "core.services.android_auto.channels.bluetooth_enabled",
                          "core.android_auto.channels.bluetooth_enabled", defaultWhenMissing);
-
+  resolved.mediaPlaybackEnabled = resolveSettingBool(       // add this block
+      settings, "channels.media_playback_enabled",
+      "core.services.android_auto.channels.media_playback_enabled",
+      "core.android_auto.channels.media_playback_enabled", defaultWhenMissing);
   // Keep channel toggles explicit: do not auto-enable optional channels when
   // video is enabled. This allows targeted compatibility profiles (minimal
   // channel sets) for troubleshooting startup/interoperability issues.
@@ -917,6 +922,21 @@ static void appendNavigationStatusFeature(
   imageOptions->set_width(256);
   imageOptions->set_height(256);
   imageOptions->set_colour_depth_bits(32);
+}
+
+static void appendMediaPlaybackStatusFeature(
+    aap_protobuf::service::control::message::ServiceDiscoveryResponse& response,
+    const std::shared_ptr<aasdk::channel::mediaplaybackstatus::MediaPlaybackStatusService>& mediaPlaybackChannel) {
+  if (!mediaPlaybackChannel) {
+    return;
+  }
+
+  auto* service = response.add_channels();
+  service->set_id(static_cast<uint32_t>(mediaPlaybackChannel->getId()));
+
+  // MediaPlaybackStatusService carries no configurable options of its own —
+  // presence of the empty sub-message is what advertises the channel.
+  service->mutable_media_playback_service();
 }
 
 static void appendBluetoothFeature(
@@ -1506,6 +1526,7 @@ class AAControlEventHandler final
     appendInputSourceFeature(response, m_service->m_inputChannel, m_service->m_resolution);
     appendSensorSourceFeature(response, m_service->m_sensorChannel);
     appendNavigationStatusFeature(response, m_service->m_navigationChannel);
+    appendMediaPlaybackStatusFeature(response, m_service->m_mediaPlaybackChannel);
     appendBluetoothFeature(response, m_service->m_bluetoothChannel);
     appendWifiProjectionFeature(response, m_service->m_wifiProjectionChannel,
                   m_service->m_wirelessHotspotBssid);
@@ -2728,6 +2749,136 @@ class AANavigationEventHandler final
   QPointer<RealAndroidAutoService> m_service;
 };
 
+class AAMediaPlaybackEventHandler final
+    : public aasdk::channel::mediaplaybackstatus::IMediaPlaybackStatusServiceEventHandler,
+      public std::enable_shared_from_this<AAMediaPlaybackEventHandler> {
+ public:
+  explicit AAMediaPlaybackEventHandler(RealAndroidAutoService* service) : m_service(service) {}
+
+  void onChannelOpenRequest(
+      const aap_protobuf::service::control::message::ChannelOpenRequest& request) override {
+    Q_UNUSED(request)
+    if (!m_service || !m_service->m_mediaPlaybackChannel || !m_service->m_strand) {
+      aaLogInfo("mediaPlaybackChannel",
+                QString("Channel open request ignored: service=%1 channel=%2 strand=%3")
+                    .arg(m_service != nullptr)
+                    .arg(m_service && m_service->m_mediaPlaybackChannel)
+                    .arg(m_service && m_service->m_strand));
+      return;
+    }
+
+    aap_protobuf::service::control::message::ChannelOpenResponse response;
+    response.set_status(aap_protobuf::shared::MessageStatus::STATUS_SUCCESS);
+
+    auto promise = aasdk::channel::SendPromise::defer(*m_service->m_strand);
+    promise->then([]() {}, [self = shared_from_this()](
+                               const aasdk::error::Error& error) { self->onChannelError(error); });
+
+    m_service->m_mediaPlaybackChannel->sendChannelOpenResponse(response, std::move(promise));
+    aaLogInfo("mediaPlaybackChannel", "Media playback channel open request accepted");
+    armReceive();
+  }
+
+  void onMetadataUpdate(
+      const aap_protobuf::service::mediaplayback::message::MediaPlaybackMetadata& metadata) override {
+    if (!m_service)
+      return;
+
+    aaLogInfo("mediaPlaybackChannel", "Media metadata received");
+
+    QVariantMap meta;
+
+    if (metadata.has_song())
+      meta["title"] = QString::fromStdString(metadata.song());
+
+    if (metadata.has_artist())
+      meta["artist"] = QString::fromStdString(metadata.artist());
+
+    if (metadata.has_album())
+      meta["album"] = QString::fromStdString(metadata.album());
+
+    if (metadata.has_playlist())
+      meta["playlist"] = QString::fromStdString(metadata.playlist());
+
+    if (metadata.has_duration_seconds())
+      meta["durationSeconds"] = static_cast<qint64>(metadata.duration_seconds());
+
+    if (metadata.has_rating())
+      meta["rating"] = metadata.rating();
+
+    // album_art is raw JPEG/PNG bytes off the wire — base64 it so it can travel
+    // as JSON over the websocket to the Vue UI (data:image/jpeg;base64,<...>).
+    if (metadata.has_album_art() && !metadata.album_art().empty()) {
+      const QByteArray artBytes(metadata.album_art().data(),
+                                 static_cast<int>(metadata.album_art().size()));
+      meta["albumArtBase64"] = QString::fromLatin1(artBytes.toBase64());
+    }
+
+    emit m_service->mediaMetadataChanged(meta);
+
+    armReceive();
+  }
+
+  void onPlaybackUpdate(
+      const aap_protobuf::service::mediaplayback::message::MediaPlaybackStatus& playback) override {
+    if (!m_service)
+      return;
+
+    aaLogInfo("mediaPlaybackChannel", "Media playback status received");
+
+    QVariantMap status;
+
+    if (playback.has_state())
+      status["state"] = static_cast<int>(playback.state());
+
+    if (playback.has_media_source())
+      status["mediaSource"] = QString::fromStdString(playback.media_source());
+
+    if (playback.has_playback_seconds())
+      status["positionSeconds"] = static_cast<qint64>(playback.playback_seconds());
+
+    if (playback.has_shuffle())
+      status["shuffle"] = playback.shuffle();
+
+    if (playback.has_repeat())
+      status["repeat"] = playback.repeat();
+
+    if (playback.has_repeat_one())
+      status["repeatOne"] = playback.repeat_one();
+
+    emit m_service->mediaPlaybackStateChanged(status);
+
+    armReceive();
+  }
+
+  void onChannelError(const aasdk::error::Error& e) override {
+    if (!m_service || m_service->m_aasdkTeardownInProgress) {
+      return;
+    }
+
+    if (isRecoverableUsbReceiveError(e) || isRecoverableMessengerIntertwinedChannelError(e)) {
+      auto self = shared_from_this();
+      QTimer::singleShot(120, m_service, [self]() { self->armReceive(); });
+      return;
+    }
+
+    if (isOperationInProgressError(e)) {
+      return;
+    }
+
+    m_service->onChannelError(QStringLiteral("mediaPlayback"), QString::fromStdString(e.what()));
+  }
+
+ private:
+  void armReceive() {
+    if (m_service && !m_service->m_aasdkTeardownInProgress && m_service->m_mediaPlaybackChannel) {
+      m_service->m_mediaPlaybackChannel->receive(shared_from_this());
+    }
+  }
+
+  QPointer<RealAndroidAutoService> m_service;
+};
+
 class AAMicrophoneEventHandler final
     : public aasdk::channel::mediasource::IMediaSourceServiceEventHandler,
       public std::enable_shared_from_this<AAMicrophoneEventHandler> {
@@ -3600,6 +3751,13 @@ void RealAndroidAutoService::setupChannels() {
       m_navigationEventHandler = std::make_shared<AANavigationEventHandler>(this);
       m_navigationChannel->receive(m_navigationEventHandler);
       Logger::instance().info("Navigation status channel enabled");
+    }
+    if (m_channelConfig.mediaPlaybackEnabled) {
+      m_mediaPlaybackChannel = std::make_shared<aasdk::channel::mediaplaybackstatus::MediaPlaybackStatusService>(
+          *m_strand, m_messenger);
+      m_mediaPlaybackEventHandler = std::make_shared<AAMediaPlaybackEventHandler>(this);
+      m_mediaPlaybackChannel->receive(m_mediaPlaybackEventHandler);
+      Logger::instance().info("Media playback status channel enabled");
     }
     // Create bluetooth channel
     if (m_channelConfig.bluetoothEnabled) {
@@ -4969,7 +5127,8 @@ void RealAndroidAutoService::setChannelConfig(const ChannelConfig& config) {
                         m_channelConfig.inputEnabled != config.inputEnabled ||
                         m_channelConfig.sensorEnabled != config.sensorEnabled ||
                         m_channelConfig.navigationEnabled != config.navigationEnabled ||
-                        m_channelConfig.bluetoothEnabled != config.bluetoothEnabled);
+                        m_channelConfig.bluetoothEnabled != config.bluetoothEnabled ||
+                        m_channelConfig.mediaPlaybackEnabled != config.mediaPlaybackEnabled);
 
   m_channelConfig = config;
   Logger::instance().info("Channel configuration updated");
@@ -5507,6 +5666,10 @@ void RealAndroidAutoService::armOptionalChannelReceivesAfterPrimaryStart() {
     traceChannelReceiveArm(QStringLiteral("navigation"), QStringLiteral("optional_channels"));
     m_navigationChannel->receive(m_navigationEventHandler);
   }
+  if (m_mediaPlaybackChannel && m_mediaPlaybackEventHandler) {   // add this block
+    traceChannelReceiveArm(QStringLiteral("mediaPlayback"), QStringLiteral("optional_channels"));
+    m_mediaPlaybackChannel->receive(m_mediaPlaybackEventHandler);
+  }
   if (m_wifiProjectionChannel && m_wifiProjectionEventHandler) {
     traceChannelReceiveArm(QStringLiteral("wifiProjection"), QStringLiteral("optional_channels"));
     m_wifiProjectionChannel->receive(m_wifiProjectionEventHandler);
@@ -5551,6 +5714,7 @@ void RealAndroidAutoService::traceServiceDiscoveryResponse() const {
   appendChannel(QStringLiteral("navigation"), m_navigationChannel);
   appendChannel(QStringLiteral("bluetooth"), m_bluetoothChannel);
   appendChannel(QStringLiteral("microphone"), m_microphoneChannel);
+  appendChannel(QStringLiteral("mediaPlayback"), m_mediaPlaybackChannel);
 
   capabilityFlags.append(
       QStringLiteral("video=%1")

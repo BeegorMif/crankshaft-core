@@ -1207,6 +1207,23 @@ void WebSocketServer::setupAndroidAutoConnections() {
                   QStringLiteral("android-auto/navigation/current-position"),
                   currentPosition);
           });
+  connect(aaService,
+          &AndroidAutoService::mediaMetadataChanged,
+          this,
+          [this](const QVariantMap& metadata) {
+              broadcastEvent(
+                  QStringLiteral("android-auto/media/metadata"),
+                  metadata);
+          });
+
+  connect(aaService,
+          &AndroidAutoService::mediaPlaybackStateChanged,
+          this,
+          [this](const QVariantMap& playbackStatus) {
+              broadcastEvent(
+                  QStringLiteral("android-auto/media/playback"),
+                  playbackStatus);
+          });
   Logger::instance().info("[WebSocketServer] Android Auto service connections setup");
 }
 

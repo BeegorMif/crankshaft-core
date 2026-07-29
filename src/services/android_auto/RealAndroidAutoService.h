@@ -41,6 +41,7 @@ class AAAudioEventHandler;
 class AAInputEventHandler;
 class AASensorEventHandler;
 class AANavigationEventHandler;
+class AAMediaPlaybackEventHandler;
 class AAMicrophoneEventHandler;
 class AABluetoothEventHandler;
 class AAWifiProjectionEventHandler;
@@ -108,6 +109,10 @@ namespace navigationstatus {
   class INavigationStatusServiceEventHandler;
   class NavigationStatusService;
 }  // namespace navigationstatus
+namespace mediaplaybackstatus {
+  class IMediaPlaybackStatusServiceEventHandler;
+  class MediaPlaybackStatusService;
+}
 namespace bluetooth {
 class IBluetoothServiceEventHandler;
 class BluetoothService;
@@ -216,6 +221,7 @@ class RealAndroidAutoService : public AndroidAutoService {
     bool inputEnabled{true};
     bool sensorEnabled{true};
     bool navigationEnabled{true};
+    bool mediaPlaybackEnabled{true};
     bool bluetoothEnabled{false};
   };
 
@@ -238,6 +244,7 @@ class RealAndroidAutoService : public AndroidAutoService {
   friend class AAInputEventHandler;
   friend class AASensorEventHandler;
   friend class AANavigationEventHandler;
+  friend class AAMediaPlaybackEventHandler;
   friend class AABluetoothEventHandler;
   friend class AAWifiProjectionEventHandler;
 
@@ -485,6 +492,8 @@ class RealAndroidAutoService : public AndroidAutoService {
   std::shared_ptr<aasdk::channel::sensorsource::SensorSourceService> m_sensorChannel;
   std::shared_ptr<aasdk::channel::navigationstatus::NavigationStatusService> m_navigationChannel;
   std::shared_ptr<AANavigationEventHandler> m_navigationEventHandler;
+  std::shared_ptr<aasdk::channel::mediaplaybackstatus::MediaPlaybackStatusService> m_mediaPlaybackChannel;
+  std::shared_ptr<AAMediaPlaybackEventHandler> m_mediaPlaybackEventHandler; 
   std::shared_ptr<aasdk::channel::bluetooth::BluetoothService> m_bluetoothChannel;
   std::shared_ptr<aasdk::channel::wifiprojection::IWifiProjectionService>
       m_wifiProjectionChannel;

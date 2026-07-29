@@ -297,6 +297,15 @@ class AndroidAutoService : public QObject {
    * @brief Emitted when current position changes
    */
   void currentPosition(const QVariantMap& currentPosition);
-};
+  
+  /**
+   * @brief Emitted when media metadata changes
+   */
+  void mediaMetadataChanged(const QVariantMap& metadata);
 
+  /**
+   * @brief Emitted when media playback status (state/position/shuffle/repeat) changes
+   */
+  void mediaPlaybackStateChanged(const QVariantMap& status);
+};
 using AndroidAutoServicePtr = std::shared_ptr<AndroidAutoService>;
