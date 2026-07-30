@@ -45,7 +45,7 @@ struct MediaConfig {
   VideoHAL::VideoResolution videoResolution = VideoHAL::VideoResolution::HD_720p;
   int videoBrightness = 50;
   int videoContrast = 50;
-  QString videoCodec = "H264";
+  QString videoCodec = "h264";
 };
 
 /**

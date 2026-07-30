@@ -297,15 +297,15 @@ bool VideoHAL::startVideoStream(const QString& streamName, const QString& codec)
 
   // Set caps based on codec
   GstCaps* caps = nullptr;
-  if (codec == "h264") {
+  if (codec.compare("h264", Qt::CaseInsensitive) == 0) {
     caps = gst_caps_new_simple("video/x-h264", "stream-format", G_TYPE_STRING, "byte-stream",
                                "alignment", G_TYPE_STRING, "au", nullptr);
-  } else if (codec == "h265") {
+  } else if (codec.compare("h265", Qt::CaseInsensitive) == 0) {
     caps = gst_caps_new_simple("video/x-h265", "stream-format", G_TYPE_STRING, "byte-stream",
                                "alignment", G_TYPE_STRING, "au", nullptr);
-  } else if (codec == "vp8") {
+  } else if (codec.compare("vp8", Qt::CaseInsensitive) == 0) {
     caps = gst_caps_new_empty_simple("video/x-vp8");
-  } else if (codec == "vp9") {
+  } else if (codec.compare("vp9", Qt::CaseInsensitive) == 0) {
     caps = gst_caps_new_empty_simple("video/x-vp9");
   } else {
     qWarning() << "Unsupported codec:" << codec;
