@@ -304,7 +304,7 @@ install(TARGETS crankshaft-core
 )
 
 # Install core configuration
-install(FILES ${CMAKE_SOURCE_DIR}/config/crankshaft.json
+install(FILES ${CMAKE_SOURCE_DIR}/src/config/crankshaft.json
   DESTINATION /etc/crankshaft
   COMPONENT core
 )
