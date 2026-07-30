@@ -281,6 +281,8 @@ bool ServiceManager::startAndroidAutoService(const DeviceConfig& device) {
     Logger::instance().info("[ServiceManager]      Creating MediaPipeline for Real AndroidAuto");
     m_mediaPipeline = new MediaPipeline(this);
     MediaConfig config{};  // Use defaults until profiles provide detailed config
+    config.enableAudio = true;
+    config.enableVideo = true;
     if (!m_mediaPipeline->start(config)) {
       Logger::instance().error("[ServiceManager]      Failed to start MediaPipeline");
       delete m_mediaPipeline;
