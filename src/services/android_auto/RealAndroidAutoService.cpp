@@ -160,7 +160,7 @@ static auto shouldEmitChannelDebugSample(quint64* sampleCounter, qint64* lastEmi
 static auto describeChannelConfig(const RealAndroidAutoService::ChannelConfig& config) -> QString {
   return QStringLiteral(
              "video=%1, mediaAudio=%2, systemAudio=%3, speechAudio=%4, "
-             "telephonyAudio=%5, microphone=%6, input=%7, sensor=%8, navigation=%9, bluetooth=%10")
+             "telephonyAudio=%5, microphone=%6, input=%7, sensor=%8, navigation=%9, bluetooth=%10, mediaPlayback=%11")
       .arg(config.videoEnabled ? QStringLiteral("on") : QStringLiteral("off"))
       .arg(config.mediaAudioEnabled ? QStringLiteral("on") : QStringLiteral("off"))
       .arg(config.systemAudioEnabled ? QStringLiteral("on") : QStringLiteral("off"))
@@ -5746,7 +5746,9 @@ void RealAndroidAutoService::traceServiceDiscoveryResponse() const {
   capabilityFlags.append(
       QStringLiteral("bluetooth=%1")
           .arg(m_channelConfig.bluetoothEnabled ? QStringLiteral("on") : QStringLiteral("off")));
-
+  capabilityFlags.append(
+      QStringLiteral("mediaPlayback=%1")
+          .arg(m_channelConfig.mediaPlaybackEnabled ? QStringLiteral("on") : QStringLiteral("off")));
   aaLogInfo("serviceDiscovery", QString("response profile=%1 channels=[%2] capabilities=[%3]")
                                     .arg(aaStartupProfileToString(resolveAAStartupProfile()))
                                     .arg(channels.join(QStringLiteral(", ")))
@@ -7180,8 +7182,9 @@ void RealAndroidAutoService::publishProjectionStatus(const QString& reason) {
   status[QStringLiteral("telephony_audio_enabled")] = m_channelConfig.telephonyAudioEnabled;
   status[QStringLiteral("input_enabled")] = m_channelConfig.inputEnabled;
   status[QStringLiteral("sensor_enabled")] = m_channelConfig.sensorEnabled;
-  status[QStringLiteral("diagnostic_enabled")] = m_channelConfig.navigationEnabled;
+  status[QStringLiteral("navigation_enabled")] = m_channelConfig.navigationEnabled;
   status[QStringLiteral("microphone_enabled")] = m_channelConfig.microphoneEnabled;
+  status[QStringLiteral("media_playback_enabled")] = m_channelConfig.mediaPlaybackEnabled;
   status[QStringLiteral("projection_ready")] = projectionReady;
   status[QStringLiteral("timestamp")] = QDateTime::currentSecsSinceEpoch();
 

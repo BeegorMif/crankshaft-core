@@ -40,6 +40,8 @@
         "microphone_enabled": true,
         "input_enabled": true,
         "sensor_enabled": true,
+        "navigation_enabled": true,
+        "media_playback_enabled": true,
         "bluetooth_enabled": true
       },
       "video": {
