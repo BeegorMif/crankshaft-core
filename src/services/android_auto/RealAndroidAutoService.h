@@ -180,6 +180,7 @@ class RealAndroidAutoService : public AndroidAutoService {
   bool disconnect() override;
 
   bool setDisplayResolution(const QSize& resolution) override;
+  [[nodiscard]] auto getNegotiatedVideoResolution() const -> QSize override { return m_negotiatedVideoResolution; }
   QSize getDisplayResolution() const override {
     return m_resolution;
   }
@@ -328,6 +329,7 @@ class RealAndroidAutoService : public AndroidAutoService {
 
   ConnectionState m_state{ConnectionState::DISCONNECTED};
   AndroidDevice m_device;
+  QSize m_negotiatedTouchResolution{1024, 600};
   QSize m_resolution{1024, 600};
   int m_fps{30};
   int m_videoDensity{160};

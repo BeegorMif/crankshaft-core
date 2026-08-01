@@ -158,6 +158,9 @@ class AndroidAutoService : public QObject {
    */
   virtual QSize getDisplayResolution() const = 0;
 
+
+  virtual auto getNegotiatedVideoResolution() const -> QSize = 0;
+
   /**
    * @brief Set FPS for video projection
    */

@@ -556,7 +556,7 @@ void WebSocketServer::handlePublish(const QString& topic, const QVariantMap& pay
           aaService->setFramerate(fps);
         }
       } else if (topic == QStringLiteral("android-auto/touch")) {
-        const QSize displayResolution = aaService->getDisplayResolution();
+        const QSize displayResolution = aaService->getNegotiatedVideoResolution();
         const double rawX = payload.value(QStringLiteral("x")).toDouble();
         const double rawY = payload.value(QStringLiteral("y")).toDouble();
 
