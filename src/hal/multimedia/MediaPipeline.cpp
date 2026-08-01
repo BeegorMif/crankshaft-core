@@ -165,7 +165,16 @@ bool MediaPipeline::updateConfig(const MediaConfig& config) {
     }
   }
 
-  m_config = config;
+  // Preserve fields this update wasn't meant to touch
+  MediaConfig merged = m_config;
+  merged.enableAudio = config.enableAudio;
+  merged.audioVolume = config.audioVolume;
+  merged.audioRoute = config.audioRoute;
+  merged.enableVideo = config.enableVideo;
+  merged.videoResolution = config.videoResolution;
+  merged.videoBrightness = config.videoBrightness;
+  merged.videoContrast = config.videoContrast;
+  m_config = merged;
   emit configUpdated();
   return true;
 }
