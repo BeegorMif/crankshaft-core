@@ -148,11 +148,10 @@ bool VideoHAL::initializePipeline() {
     d->sink = gst_element_factory_make("waylandsink", "video-sink");
   }
   if (!d->sink) {
-    d->sink = gst_element_factory_make("autovideosink", "video-sink");
-  }
-  if (!d->sink) {
-    // No usable display sink (headless / EGLFS with nothing to preview to).
-    // This is fine — video still reaches ui-slim via the websocket branch.
+    // Don't fall back to autovideosink on EGLFS/KMS systems — it can
+    // auto-select kmssink and grab DRM master, fighting ui-slim for
+    // the display. Core doesn't need to render locally at all; frames
+    // reach ui-slim via the websocket branch regardless.
     d->sink = gst_element_factory_make("fakesink", "video-sink");
     if (d->sink) {
       g_object_set(G_OBJECT(d->sink), "sync", FALSE, nullptr);
