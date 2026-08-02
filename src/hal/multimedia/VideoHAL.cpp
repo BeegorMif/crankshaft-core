@@ -24,6 +24,7 @@
 #include <gst/video/video.h>
 
 #include <QDebug>
+#include <cstdlib>
 
 class VideoHAL::VideoHALPrivate {
  public:
@@ -91,15 +92,17 @@ gboolean VideoHAL::VideoHALPrivate::busCallback(GstBus* bus, GstMessage* message
 }
 
 void VideoHAL::VideoHALPrivate::updateBrightnessContrast() {
-  // Note: These properties may not be available on all sinks
-  // videobalance element can be inserted for this purpose
-  if (sink) {
-    // Convert 0-100 range to -1.0 to 1.0 range
-    double brightness = (currentBrightness - 50) / 50.0;
-    double contrast = (currentContrast - 50) / 50.0 + 1.0;
+  if (!sink) return;
 
-    // Try to set properties if supported
-    g_object_set(G_OBJECT(sink), "brightness", brightness, "contrast", contrast, nullptr);
+  double brightness = (currentBrightness - 50) / 50.0;
+  double contrast = (currentContrast - 50) / 50.0 + 1.0;
+
+  GObjectClass* klass = G_OBJECT_GET_CLASS(sink);
+  if (g_object_class_find_property(klass, "brightness")) {
+    g_object_set(sink, "brightness", brightness, nullptr);
+  }
+  if (g_object_class_find_property(klass, "contrast")) {
+    g_object_set(sink, "contrast", contrast, nullptr);
   }
 }
 
@@ -116,7 +119,19 @@ VideoHAL::~VideoHAL() {
   cleanup();
   delete d;
 }
-
+namespace {
+bool waylandCompositorAvailable() {
+  const char* waylandDisplay = std::getenv("WAYLAND_DISPLAY");
+  return waylandDisplay && waylandDisplay[0] != '\0';
+}
+void setSinkPropertyIfSupported(GstElement* sink, const char* property, gint value) {
+  if (!sink) return;
+  GObjectClass* klass = G_OBJECT_GET_CLASS(sink);
+  if (g_object_class_find_property(klass, property)) {
+    g_object_set(sink, property, value, nullptr);
+  }
+}
+}
 bool VideoHAL::initializePipeline() {
   // Create pipeline elements
   d->pipeline = gst_pipeline_new("video-pipeline");
@@ -125,10 +140,23 @@ bool VideoHAL::initializePipeline() {
   d->convert = gst_element_factory_make("videoconvert", "converter");
   d->scale = gst_element_factory_make("videoscale", "scaler");
 
-  // Use waylandsink for Wayland or ximagesink for X11, fallback to autovideosink
-  d->sink = gst_element_factory_make("waylandsink", "video-sink");
+  // Only attempt waylandsink if a compositor is actually reachable.
+  // On EGLFS (e.g. the Pi target) there's no compositor, so waylandsink
+  // would instantiate fine but fail at state-change time — check first
+  // instead of relying on that failure to fall back.
+  if (waylandCompositorAvailable()) {
+    d->sink = gst_element_factory_make("waylandsink", "video-sink");
+  }
   if (!d->sink) {
     d->sink = gst_element_factory_make("autovideosink", "video-sink");
+  }
+  if (!d->sink) {
+    // No usable display sink (headless / EGLFS with nothing to preview to).
+    // This is fine — video still reaches ui-slim via the websocket branch.
+    d->sink = gst_element_factory_make("fakesink", "video-sink");
+    if (d->sink) {
+      g_object_set(G_OBJECT(d->sink), "sync", FALSE, nullptr);
+    }
   }
 
   if (!d->pipeline || !d->source || !d->decoder || !d->convert || !d->scale || !d->sink) {
