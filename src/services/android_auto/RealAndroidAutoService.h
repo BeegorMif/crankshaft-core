@@ -306,6 +306,7 @@ class RealAndroidAutoService : public AndroidAutoService {
   void onAudioData(const QByteArray& data);
   void onUSBHotplug(bool connected);
   void checkForConnectedDevices();  // Fallback device detection
+  void checkConnectionLiveness();   // Detects a physical unplug while CONNECTED
   void ensureAoapRetryResetTimer();
   void armAoapRetryResetWindowIfNeeded();
   void sendControlVersionRequest();
@@ -436,6 +437,7 @@ class RealAndroidAutoService : public AndroidAutoService {
   QTimer* m_ioServiceTimer{nullptr};
   QTimer* m_deviceDetectionTimer{nullptr};  // Fallback device detection timer
   QTimer* m_slowdownTimer{nullptr};         // Separate timer for slowdown logic
+  QTimer* m_connectionLivenessTimer{nullptr};  // Detects a physical unplug while CONNECTED
 
   // Transport configuration
   TransportMode m_transportMode{TransportMode::Auto};
@@ -462,6 +464,9 @@ class RealAndroidAutoService : public AndroidAutoService {
   int m_failedDeviceCheckCount{0};  // Track failed checks for slowdown (issue #83)
   static constexpr int m_aoapMaxAttempts = 3;
   static constexpr int m_aoapResetMs = 5 * 60 * 1000;  // 5 minutes
+
+  uint8_t m_connectedUsbBus{0};
+  uint8_t m_connectedUsbAddress{0};
 
   // Pointers to AASDK objects (owned by io_service)
   std::shared_ptr<aasdk::usb::IUSBWrapper> m_usbWrapper;
@@ -502,6 +507,8 @@ class RealAndroidAutoService : public AndroidAutoService {
   std::shared_ptr<aasdk::channel::mediasource::audio::MicrophoneAudioChannel> m_microphoneChannel;
   std::shared_ptr<aasdk::channel::control::ControlServiceChannel> m_controlChannel;
   std::shared_ptr<AAControlEventHandler> m_controlEventHandler;
+  QString m_controlEventHandlerSessionId;
+  QString m_channelEventHandlersSessionId;
   int m_controlVersionRequestAttempts{0};
   int m_controlVersionRequestMaxAttempts{10};
   qint64 m_controlVersionFirstRequestMs{0};

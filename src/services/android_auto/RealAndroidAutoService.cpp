@@ -4494,6 +4494,10 @@ void RealAndroidAutoService::cleanupChannels() {
   m_tcpWrapper.reset();
   m_cryptor.reset();
 
+  if (m_connectionLivenessTimer) {
+    m_connectionLivenessTimer->stop();
+  }
+
   // Ensure AOAP interface is released before any recovery re-attach attempt.
   if (m_aoapDevice) {
     m_aoapDevice.reset();
@@ -4739,6 +4743,8 @@ void RealAndroidAutoService::startUSBHubDetection() {
 
               m_aoapDevice = aasdk::usb::AOAPDevice::create(*m_usbWrapper, *m_ioService,
                                                             std::move(deviceHandle));
+              m_connectedUsbBus = resolvedDevice ? libusb_get_bus_number(resolvedDevice) : 0;
+              m_connectedUsbAddress = resolvedDevice ? libusb_get_device_address(resolvedDevice) : 0;
 
               aaLogInfo("aoapTrace", "hub stage=promise-resolved-direct-attach success");
               transitionToState(ConnectionState::CONNECTING);
@@ -5241,6 +5247,23 @@ void RealAndroidAutoService::handleConnectionEstablished() {
   aaLogDebug("handleConnectionEstablished",
              QString("enter, channelsReady=%1").arg(m_messenger ? "true" : "false"));
 
+  // Extract real device serial if not yet set, and create the session for
+  // this device *before* anything below checks/uses m_currentSessionId —
+  // in particular the control-handler staleness check further down relies
+  // on m_currentSessionId already reflecting the new session.
+  if (m_device.serialNumber.trimmed().isEmpty()) {
+    QString extractedSerial = extractDeviceSerialFromUSB();
+    m_device.serialNumber = !extractedSerial.isEmpty()
+                                ? extractedSerial
+                                : QString("AA_%1_%2")
+                                      .arg(QDateTime::currentMSecsSinceEpoch())
+                                      .arg(QRandomGenerator::global()->bounded(10000));
+  }
+  m_device.connected = true;
+  m_deviceGoneRecoveryScheduled = false;
+  aaLogInfo("handleConnectionEstablished",
+            QString("Device connected with serial: %1").arg(m_device.serialNumber));
+  createSessionForDevice(m_device.serialNumber);
   resetProjectionStatus(QStringLiteral("connection_established"));
 
   const bool compatOpenAutoProfile = isCompatOpenAutoProfileEnabled();
@@ -5265,6 +5288,29 @@ void RealAndroidAutoService::handleConnectionEstablished() {
   } else {
     aaLogDebug("handleConnectionEstablished",
                "Channel objects already initialised; skipping duplicate setupChannels");
+  }
+
+  if (m_channelEventHandlersSessionId != m_currentSessionId) {
+    if (m_videoEventHandler || m_mediaAudioEventHandler || m_systemAudioEventHandler ||
+        m_speechAudioEventHandler || m_telephonyAudioEventHandler || m_inputEventHandler ||
+        m_sensorEventHandler || m_microphoneEventHandler || m_bluetoothEventHandler ||
+        m_wifiProjectionEventHandler) {
+      aaLogWarning("channelHandlers",
+          QString("Stale channel event handler(s) from session '%1' found while starting "
+                  "session '%2'; resetting before re-arming channels")
+              .arg(m_channelEventHandlersSessionId, m_currentSessionId));
+      m_videoEventHandler.reset();
+      m_mediaAudioEventHandler.reset();
+      m_systemAudioEventHandler.reset();
+      m_speechAudioEventHandler.reset();
+      m_telephonyAudioEventHandler.reset();
+      m_inputEventHandler.reset();
+      m_sensorEventHandler.reset();
+      m_microphoneEventHandler.reset();
+      m_bluetoothEventHandler.reset();
+      m_wifiProjectionEventHandler.reset();
+    }
+    m_channelEventHandlersSessionId = m_currentSessionId;
   }
 
   if (m_videoChannel && !m_videoEventHandler) {
@@ -5421,8 +5467,17 @@ void RealAndroidAutoService::handleConnectionEstablished() {
               "resilient_profile enabled: startup deferrals and recovery policy remain active");
   }
 
-  if (m_controlChannel && !m_controlEventHandler) {
+  if (m_controlEventHandler && m_controlEventHandlerSessionId != m_currentSessionId) {
+    aaLogWarning("control",
+        QString("Stale control event handler from session '%1' found while starting "
+                "session '%2'; resetting before re-arming control channel")
+            .arg(m_controlEventHandlerSessionId, m_currentSessionId));
+    m_controlEventHandler.reset();
+  }
+
+if (m_controlChannel && !m_controlEventHandler) {
     m_controlEventHandler = std::make_shared<AAControlEventHandler>(this);
+    m_controlEventHandlerSessionId = m_currentSessionId;
     m_controlVersionRequestAttempts = 0;
     m_controlVersionFirstRequestMs = 0;
     m_controlVersionLastRequestMs = 0;
@@ -5479,19 +5534,19 @@ void RealAndroidAutoService::handleConnectionEstablished() {
     m_device.androidVersion = QStringLiteral("Unknown");
   }
 
-  m_device.connected = true;
-  m_deviceGoneRecoveryScheduled = false;
-
-  aaLogInfo("handleConnectionEstablished",
-            QString("Device connected with serial: %1").arg(m_device.serialNumber));
-
-  // Create session for this device
-  const QString deviceId = m_device.serialNumber;
-  createSessionForDevice(deviceId);
-
   transitionToState(ConnectionState::CONNECTED);
   publishProjectionStatus(QStringLiteral("connection_state_connected"));
   emit connected(m_device);
+
+  if (m_connectionLivenessTimer == nullptr) {
+    m_connectionLivenessTimer = new QTimer(this);
+    m_connectionLivenessTimer->setObjectName("AAConnectionLivenessTimer");
+    connect(m_connectionLivenessTimer, &QTimer::timeout, this,
+            &RealAndroidAutoService::checkConnectionLiveness);
+  }
+  m_connectionLivenessTimer->setInterval(2500);
+  m_connectionLivenessTimer->start();
+
   aaLogInfo("handleConnectionEstablished",
             "connection state transitioned to CONNECTED and signal emitted");
   Logger::instance().info("Android Auto connection established");
@@ -6215,6 +6270,8 @@ void RealAndroidAutoService::checkForConnectedDevices() {
 
               m_aoapDevice = aasdk::usb::AOAPDevice::create(*m_usbWrapper, *m_ioService,
                                                             std::move(aoapHandle));
+              m_connectedUsbBus = dev ? libusb_get_bus_number(dev) : 0;
+              m_connectedUsbAddress = dev ? libusb_get_device_address(dev) : 0;
 
               aaLogInfo(
                   "aoapTrace",
@@ -6542,6 +6599,37 @@ void RealAndroidAutoService::checkForConnectedDevices() {
   } catch (const std::exception& e) {
     Logger::instance().debug(
         QString("[RealAndroidAutoService] Device check error: %1").arg(e.what()));
+  }
+}
+
+void RealAndroidAutoService::checkConnectionLiveness() {
+  if (m_state != ConnectionState::CONNECTED || !m_libusbContext) {
+    return;
+  }
+
+  libusb_device** deviceList = nullptr;
+  const ssize_t deviceCount = libusb_get_device_list(m_libusbContext, &deviceList);
+  if (deviceCount < 0) {
+    // Enumeration itself failing is not evidence the device is gone; skip this tick.
+    return;
+  }
+
+  bool stillPresent = false;
+  for (ssize_t i = 0; i < deviceCount; ++i) {
+    if (libusb_get_bus_number(deviceList[i]) == m_connectedUsbBus &&
+        libusb_get_device_address(deviceList[i]) == m_connectedUsbAddress) {
+      stillPresent = true;
+      break;
+    }
+  }
+  libusb_free_device_list(deviceList, 1);
+
+  if (!stillPresent) {
+    aaLogWarning("connectionLiveness",
+        QString("Connected USB device bus=%1 addr=%2 no longer enumerated; treating as removed")
+            .arg(m_connectedUsbBus)
+            .arg(m_connectedUsbAddress));
+    handleDeviceRemoved();
   }
 }
 
