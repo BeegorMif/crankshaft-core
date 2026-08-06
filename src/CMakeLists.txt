@@ -345,6 +345,10 @@ else()
   set(CRANKSHAFT_CORE_VERSION "${CRANKSHAFT_CORE_VERSION_AUTO}")
 endif()
 set(CPACK_GENERATOR "DEB")
+set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
+    "${CMAKE_SOURCE_DIR}/packaging/core/postinst"
+    "${CMAKE_SOURCE_DIR}/packaging/core/prerm"
+)
 set(CPACK_PACKAGE_NAME "crankshaft-core")
 set(CPACK_PACKAGE_VENDOR "OpenCarDev")
 set(CPACK_PACKAGE_CONTACT "OpenCarDev Team")
