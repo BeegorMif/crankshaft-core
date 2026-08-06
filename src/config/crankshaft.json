@@ -46,9 +46,11 @@
       },
       "video": {
         "resolution": {
-          "width": 800,
-          "height": 480
-        },
+          "width": 1280,
+          "height": 720
+         },
+        "negotiated_width": 1280,
+        "negotiated_height": 720,
         "fps": 30,
         "density": 140,
         "width_margin": 0,
