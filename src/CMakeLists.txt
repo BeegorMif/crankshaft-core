@@ -346,8 +346,7 @@ else()
 endif()
 set(CPACK_GENERATOR "DEB")
 set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
-    "${CMAKE_SOURCE_DIR}/packaging/core/postinst"
-    "${CMAKE_SOURCE_DIR}/packaging/core/prerm"
+    "${CMAKE_SOURCE_DIR}/packaging/core/postinst";"${CMAKE_SOURCE_DIR}/packaging/core/prerm"
 )
 set(CPACK_PACKAGE_NAME "crankshaft-core")
 set(CPACK_PACKAGE_VENDOR "OpenCarDev")
