@@ -39,6 +39,9 @@ for arg in "$@"; do
       BUILD_SBOM="ON"
       SBOM_ONLY="ON"
       ;;
+    --install)
+      BUILD_INSTALL="ON"
+      ;;
   esac
 done
 
@@ -387,5 +390,8 @@ if [[ "${BUILD_SBOM}" == "ON" ]]; then
   fi
   generate_sboms
 fi
-
+if [[ "${BUILD_INSTALL}" == "ON" ]]; then
+  log "Installing"
+  cmake --install "${BUILD_DIR}"
+fi
 log "Done"
