@@ -21,7 +21,6 @@
 
 #include <QList>
 #include <QSet>
-#include <QThread>
 class QTimer;
 #include <boost/asio.hpp>
 #include <memory>
@@ -433,7 +432,6 @@ class RealAndroidAutoService : public AndroidAutoService {
 #else
   std::shared_ptr<boost::asio::io_service> m_ioService;
 #endif
-  std::unique_ptr<QThread> m_aasdkThread;
   QTimer* m_ioServiceTimer{nullptr};
   QTimer* m_deviceDetectionTimer{nullptr};  // Fallback device detection timer
   QTimer* m_slowdownTimer{nullptr};         // Separate timer for slowdown logic

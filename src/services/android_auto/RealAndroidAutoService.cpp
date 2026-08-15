@@ -3198,10 +3198,7 @@ class AAWifiProjectionEventHandler final
 
 RealAndroidAutoService::RealAndroidAutoService(MediaPipeline* mediaPipeline, QObject* parent)
     : AndroidAutoService(parent),
-      m_mediaPipeline(mediaPipeline),
-      m_aasdkThread(std::make_unique<QThread>()) {
-  // Configure AASDK thread
-  m_aasdkThread->setObjectName("AASDKThread");
+      m_mediaPipeline(mediaPipeline) {
 
   // Initialize SessionStore
   m_sessionStore = new SessionStore(QString(), this);
@@ -3238,8 +3235,6 @@ RealAndroidAutoService::~RealAndroidAutoService() {
     cleanupAASDK();
     m_isInitialised = false;
   }
-
-  // m_aasdkThread is already initialized in constructor initialization list
 }
 
 void RealAndroidAutoService::setWirelessNetworkManager(
@@ -3481,11 +3476,6 @@ void RealAndroidAutoService::setupAASDK() {
   // Create USB hub for device hotplug detection
   m_usbHub =
       std::make_shared<aasdk::usb::USBHub>(*m_usbWrapper, *m_ioService, *m_queryChainFactory);
-
-  // Start AASDK thread
-  m_aasdkThread->start();
-  aaLogDebug("setupAASDK",
-             QString("AASDK thread started (name=%1)").arg(m_aasdkThread->objectName()));
 
   // Integrate io_service with Qt event loop via periodic polling
   if (m_ioServiceTimer == nullptr) {
