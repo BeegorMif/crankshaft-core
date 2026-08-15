@@ -475,8 +475,8 @@ void WebSocketServer::handlePublish(const QString& topic, const QVariantMap& pay
           const bool hasBringupProgress =
             projectionReady || controlVersionReceived || serviceDiscoveryCompleted;
 
-          if (connectedAgeMs >= 0 && connectedAgeMs < m_connectedRenegotiationGraceMs &&
-            hasBringupProgress) {
+          if (m_offerSentThisSession && connectedAgeMs >= 0 &&
+            connectedAgeMs < m_connectedRenegotiationGraceMs && hasBringupProgress) {
           Logger::instance().warning(
             QString("[WebSocketServer] Suppressed Android Auto renegotiation "
                 "(connected warm-up grace active, age=%1 ms, grace=%2 ms, "
@@ -1188,6 +1188,9 @@ void WebSocketServer::setupAndroidAutoConnections() {
           &WebSocketServer::onAndroidAutoProjectionStatus);
     connect(aaService, &AndroidAutoService::webRtcSignalingMessage, this,
       [this](const QString& topic, const QVariantMap& payload) {
+        if (topic == QStringLiteral("android-auto/webrtc/offer")) {
+          m_offerSentThisSession = true;
+        }
         broadcastEvent(topic, payload);
       });
   connect(aaService,
@@ -1232,9 +1235,11 @@ void WebSocketServer::onAndroidAutoStateChanged(int state) {
 
   if (state == static_cast<int>(AndroidAutoService::ConnectionState::CONNECTED)) {
     m_lastConnectedStateMs = QDateTime::currentMSecsSinceEpoch();
+    m_offerSentThisSession = false;
   } else if (state == static_cast<int>(AndroidAutoService::ConnectionState::DISCONNECTED) ||
              state == static_cast<int>(AndroidAutoService::ConnectionState::ERROR)) {
     m_lastConnectedStateMs = 0;
+    m_offerSentThisSession = false;
   }
 
   QVariantMap payload;
