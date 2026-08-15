@@ -430,6 +430,11 @@ void WebSocketServer::handleSubscribe(QWebSocket* client, const QString& topic) 
         if (m_hasProjectionStatus) {
           onAndroidAutoProjectionStatus(m_lastProjectionStatus);
         }
+        if (topic == QStringLiteral("android-auto/media/video-frame") && m_hasVideoFrame) {
+          Logger::instance().info(
+              "[WebSocketServer] Replaying last video frame to new subscriber");
+          broadcastEvent("android-auto/media/video-frame", m_lastVideoFramePayload);
+        }
       }
     }
   } else {
@@ -1239,6 +1244,7 @@ void WebSocketServer::onAndroidAutoStateChanged(int state) {
   } else if (state == static_cast<int>(AndroidAutoService::ConnectionState::DISCONNECTED) ||
              state == static_cast<int>(AndroidAutoService::ConnectionState::ERROR)) {
     m_lastConnectedStateMs = 0;
+    m_hasVideoFrame = false;
     m_offerSentThisSession = false;
   }
 
@@ -1339,6 +1345,8 @@ void WebSocketServer::onAndroidAutoVideoFrameReady(int width, int height,
   payload["encoding"] = "jpeg-base64";
   payload["sequence"] = static_cast<qulonglong>(++m_videoFrameSequence);
   payload["data"] = QString::fromLatin1(jpegBytes.toBase64());
+  m_lastVideoFramePayload = payload;
+  m_hasVideoFrame = true;
   broadcastEvent("android-auto/media/video-frame", payload);
 }
 

@@ -386,6 +386,8 @@ class WebSocketServer : public QObject {
   bool m_hasProjectionStatus{false};
   qint64 m_lastConnectedStateMs{0};
   bool m_offerSentThisSession = false;
+  QVariantMap m_lastVideoFramePayload;
+  bool m_hasVideoFrame = false;
   qint64 m_lastRenegotiationRequestMs{0};
   int m_renegotiationCooldownMs{8000};
   int m_connectedRenegotiationGraceMs{20000};
