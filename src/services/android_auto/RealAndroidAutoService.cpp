@@ -2481,7 +2481,7 @@ class AANavigationEventHandler final
       if (!m_service)
           return;
 
-      aaLogInfo("navigationChannel", "Navigation state received");
+      aaLogDebug("navigationChannel", "Navigation state received");
 
       QVariantMap state;
 
@@ -2784,7 +2784,7 @@ class AAMediaPlaybackEventHandler final
     if (!m_service)
       return;
 
-    aaLogInfo("mediaPlaybackChannel", "Media metadata received");
+    aaLogDebug("mediaPlaybackChannel", "Media metadata received");
 
     QVariantMap meta;
 
@@ -2824,7 +2824,7 @@ class AAMediaPlaybackEventHandler final
     if (!m_service)
       return;
 
-    aaLogInfo("mediaPlaybackChannel", "Media playback status received");
+    aaLogDebug("mediaPlaybackChannel", "Media playback status received");
 
     QVariantMap status;
 
