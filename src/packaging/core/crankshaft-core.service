@@ -18,9 +18,9 @@
 [Unit]
 Description=Crankshaft Core Service
 Documentation=https://github.com/opencardev/crankshaft-core
-After=network.target
+After=network.target crankshaft-pulseaudio.service
 Wants=network.target
-
+Requires=crankshaft-pulseaudio.service
 [Service]
 Type=simple
 User=crankshaft
