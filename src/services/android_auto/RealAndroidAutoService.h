@@ -180,6 +180,7 @@ class RealAndroidAutoService : public AndroidAutoService {
 
   bool setDisplayResolution(const QSize& resolution) override;
   [[nodiscard]] auto getNegotiatedVideoResolution() const -> QSize override { return m_negotiatedVideoResolution; }
+  [[nodiscard]] auto getNegotiatedTouchResolution() const -> QSize { return m_negotiatedTouchResolution; }
   QSize getDisplayResolution() const override {
     return m_resolution;
   }

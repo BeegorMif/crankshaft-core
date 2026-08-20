@@ -1524,6 +1524,7 @@ class AAControlEventHandler final
                            aap_protobuf::service::media::sink::message::AUDIO_STREAM_TELEPHONY,
                            16000, 1);
     appendInputSourceFeature(response, m_service->m_inputChannel, m_service->m_resolution);
+    m_service->m_negotiatedTouchResolution = m_service->m_resolution;
     appendSensorSourceFeature(response, m_service->m_sensorChannel);
     appendNavigationStatusFeature(response, m_service->m_navigationChannel);
     appendMediaPlaybackStatusFeature(response, m_service->m_mediaPlaybackChannel);
@@ -4964,8 +4965,8 @@ bool RealAndroidAutoService::sendTouchInput(int x, int y, int action) {
   try {
     using namespace crankshaft::protocol;
 
-    const int boundedX = qBound(0, x, qMax(0, m_resolution.width() - 1));
-    const int boundedY = qBound(0, y, qMax(0, m_resolution.height() - 1));
+    const int boundedX = qBound(0, x, qMax(0, m_negotiatedTouchResolution.width() - 1));
+    const int boundedY = qBound(0, y, qMax(0, m_negotiatedTouchResolution.height() - 1));
 
     // Map action (0=DOWN, 1=UP, 2=MOVE)
     TouchAction touchAction;
