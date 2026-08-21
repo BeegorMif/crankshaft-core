@@ -4330,7 +4330,10 @@ void RealAndroidAutoService::rearmActiveReceives() {
   if (m_sensorChannel && m_sensorEventHandler) {
     m_sensorChannel->receive(m_sensorEventHandler);
   }
-
+  // Re-arm the navigation status channel.
+  if (m_navigationChannel && m_navigationEventHandler) {
+    m_navigationChannel->receive(m_navigationEventHandler);
+  }
   // Re-arm microphone only when the session is already past the pre-start
   // window; during AOAP negotiation the microphone is not yet active.
   if (m_serviceDiscoveryCompleted && m_microphoneChannel && m_microphoneEventHandler) {
