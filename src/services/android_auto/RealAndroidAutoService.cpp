@@ -7787,6 +7787,7 @@ void RealAndroidAutoService::onChannelError(const QString& channelName, const QS
             .arg(m_serviceDiscoveryCompleted ? QStringLiteral("true") : QStringLiteral("false")));
 
     if (m_preHandshakeNonControlChannelErrorCount <= graceMaxErrors) {
+      rearmActiveReceives();
       return;
     }
 
