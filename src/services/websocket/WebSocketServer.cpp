@@ -551,6 +551,7 @@ void WebSocketServer::handlePublish(const QString& topic, const QVariantMap& pay
           Logger::instance().info(
               QString("[WebSocketServer] Received display resolution update from UI: %1x%2").arg(width).arg(height));
           aaService->setDisplayResolution(QSize(width, height));
+          aaService->setNegotiatedTouchResolution(QSize(width, height));
         }
       } else if (topic == QStringLiteral("android-auto/display/fps")) {
         const int fps = payload.value(QStringLiteral("fps")).toInt();
