@@ -3221,6 +3221,15 @@ RealAndroidAutoService::RealAndroidAutoService(MediaPipeline* mediaPipeline, QOb
     Logger::instance().warning(
         "[RealAndroidAutoService] Failed to initialize AudioRouter - audio may not work");
   }
+    // Startup race: crankshaft-pulseaudio.service's socket may not exist yet
+    // even though the unit has started. Retry shortly in the background
+    // rather than blocking construction.
+    QTimer::singleShot(1000, this, [this]() {
+      if (m_audioRouter && m_audioRouter->ensureAudioBackendReady("startup-retry")) {
+        Logger::instance().info(
+            "[RealAndroidAutoService] AudioRouter backend recovered after retry");
+      }
+    });
 
   resetProjectionStatus(QStringLiteral("service_initialised"));
 }
