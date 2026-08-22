@@ -68,6 +68,7 @@ class MockAndroidAutoService : public AndroidAutoService {
   }
   [[nodiscard]] auto getNegotiatedVideoResolution() const -> QSize override { return getDisplayResolution(); }
   [[nodiscard]] auto getNegotiatedTouchResolution() const -> QSize override { return QSize(1024, 600); }
+  auto setNegotiatedTouchResolution(const QSize& resolution) -> void override { Q_UNUSED(resolution); }
   bool setFramerate(int fps) override;
   int getFramerate() const override {
     return m_fps;

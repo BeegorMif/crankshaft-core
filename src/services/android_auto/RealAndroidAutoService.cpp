@@ -1524,7 +1524,6 @@ class AAControlEventHandler final
                            aap_protobuf::service::media::sink::message::AUDIO_STREAM_TELEPHONY,
                            16000, 1);
     appendInputSourceFeature(response, m_service->m_inputChannel, m_service->m_resolution);
-    m_service->m_negotiatedTouchResolution = m_service->m_resolution;
     appendSensorSourceFeature(response, m_service->m_sensorChannel);
     appendNavigationStatusFeature(response, m_service->m_navigationChannel);
     appendMediaPlaybackStatusFeature(response, m_service->m_mediaPlaybackChannel);
