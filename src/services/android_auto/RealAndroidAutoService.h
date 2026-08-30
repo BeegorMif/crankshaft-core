@@ -333,8 +333,8 @@ class RealAndroidAutoService : public AndroidAutoService {
 
   ConnectionState m_state{ConnectionState::DISCONNECTED};
   AndroidDevice m_device;
-  QSize m_negotiatedTouchResolution{1024, 600};
-  QSize m_resolution{1024, 600};
+  QSize m_negotiatedTouchResolution{1280, 720};
+  QSize m_resolution{1280, 720};
   int m_fps{30};
   int m_videoDensity{160};
   int m_videoWidthMargin{0};

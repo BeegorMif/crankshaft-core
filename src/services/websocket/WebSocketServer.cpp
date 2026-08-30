@@ -563,6 +563,7 @@ void WebSocketServer::handlePublish(const QString& topic, const QVariantMap& pay
         }
       } else if (topic == QStringLiteral("android-auto/touch")) {
         const QSize displayResolution = aaService->getNegotiatedTouchResolution();
+
         const double rawX = payload.value(QStringLiteral("x")).toDouble();
         const double rawY = payload.value(QStringLiteral("y")).toDouble();
 

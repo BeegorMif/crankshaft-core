@@ -1523,7 +1523,7 @@ class AAControlEventHandler final
     appendAudioSinkFeature(response, m_service->m_telephonyAudioChannel,
                            aap_protobuf::service::media::sink::message::AUDIO_STREAM_TELEPHONY,
                            16000, 1);
-    appendInputSourceFeature(response, m_service->m_inputChannel, m_service->m_resolution);
+    appendInputSourceFeature(response, m_service->m_inputChannel, m_service->getNegotiatedTouchResolution());
     appendSensorSourceFeature(response, m_service->m_sensorChannel);
     appendNavigationStatusFeature(response, m_service->m_navigationChannel);
     appendMediaPlaybackStatusFeature(response, m_service->m_mediaPlaybackChannel);
@@ -1871,8 +1871,8 @@ class AAVideoEventHandler final
 
     const QByteArray frameData(reinterpret_cast<const char*>(buffer.cdata),
                                static_cast<int>(buffer.size));
-    m_service->onVideoChannelUpdate(frameData, m_service->m_resolution.width(),
-                                    m_service->m_resolution.height());
+    m_service->onVideoChannelUpdate(frameData, m_service->getNegotiatedVideoResolution().width(),
+                                m_service->getNegotiatedVideoResolution().height());
 
     aap_protobuf::service::media::source::message::Ack ack;
     ack.set_session_id(m_sessionId);
