@@ -1510,7 +1510,7 @@ class AAControlEventHandler final
     headUnitInfo->set_head_unit_software_build("1");
     headUnitInfo->set_head_unit_software_version("1.0");
 
-    appendVideoSinkFeature(response, m_service->m_videoChannel, m_service->negotiatedVideoResolution(),
+    appendVideoSinkFeature(response, m_service->m_videoChannel, m_service->getNegotiatedVideoResolution(),
                  m_service->m_fps, m_service->m_videoDensity,
                  m_service->m_videoWidthMargin, m_service->m_videoHeightMargin);
     appendAudioSinkFeature(response, m_service->m_mediaAudioChannel,
@@ -1525,7 +1525,7 @@ class AAControlEventHandler final
     appendAudioSinkFeature(response, m_service->m_telephonyAudioChannel,
                            aap_protobuf::service::media::sink::message::AUDIO_STREAM_TELEPHONY,
                            16000, 1);
-    appendInputSourceFeature(response, m_service->m_inputChannel, m_service->negotiatedVideoResolution());
+    appendInputSourceFeature(response, m_service->m_inputChannel, m_service->getNegotiatedVideoResolution());
     appendSensorSourceFeature(response, m_service->m_sensorChannel);
     appendNavigationStatusFeature(response, m_service->m_navigationChannel);
     appendMediaPlaybackStatusFeature(response, m_service->m_mediaPlaybackChannel);
@@ -1873,8 +1873,8 @@ class AAVideoEventHandler final
 
     const QByteArray frameData(reinterpret_cast<const char*>(buffer.cdata),
                                static_cast<int>(buffer.size));
-    m_service->onVideoChannelUpdate(frameData, m_service->negotiatedVideoResolution().width(),
-                                m_service->negotiatedVideoResolution().height());
+    m_service->onVideoChannelUpdate(frameData, m_service->getNegotiatedVideoResolution().width(),
+                                m_service->getNegotiatedVideoResolution().height());
 
     aap_protobuf::service::media::source::message::Ack ack;
     ack.set_session_id(m_sessionId);
