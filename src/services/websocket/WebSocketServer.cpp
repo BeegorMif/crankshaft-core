@@ -564,10 +564,6 @@ void WebSocketServer::handlePublish(const QString& topic, const QVariantMap& pay
       } else if (topic == QStringLiteral("android-auto/touch")) {
         const QSize displayResolution = aaService->getNegotiatedTouchResolution();
 
-  Logger::instance().infoContext("TouchHandler",
-      QString("negotiatedTouchResolution: %1x%2")
-          .arg(displayResolution.width())
-          .arg(displayResolution.height()));
         const double rawX = payload.value(QStringLiteral("x")).toDouble();
         const double rawY = payload.value(QStringLiteral("y")).toDouble();
 
@@ -581,9 +577,6 @@ void WebSocketServer::handlePublish(const QString& topic, const QVariantMap& pay
           y = static_cast<int>(rawY * static_cast<double>(displayResolution.height()));
         }
 
-  Logger::instance().infoContext("TouchHandler",
-      QString("raw: (%1, %2) -> pixel: (%3, %4)")
-          .arg(rawX).arg(rawY).arg(x).arg(y));
         x = qBound(0, x, qMax(0, displayResolution.width() - 1));
         y = qBound(0, y, qMax(0, displayResolution.height() - 1));
 
@@ -595,9 +588,6 @@ void WebSocketServer::handlePublish(const QString& topic, const QVariantMap& pay
           action = 1;
         }
 
-  Logger::instance().infoContext("TouchHandler",
-      QString("sending: (%1, %2)")
-          .arg(x).arg(y));
         aaService->sendTouchInput(x, y, action);
       } else if (topic == QStringLiteral("android-auto/key")) {
         const QString keyName = payload.value(QStringLiteral("key")).toString().toUpper();
