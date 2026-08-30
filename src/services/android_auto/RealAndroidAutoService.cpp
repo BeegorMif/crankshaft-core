@@ -416,8 +416,8 @@ static auto isProjectionIdleReconnectEnabled() -> bool {
     -> AAVideoAdvertisementConfig {
     const bool compatOpenAutoProfile = isCompatOpenAutoProfileEnabled();
 
-    const int defaultWidth = compatOpenAutoProfile ? 800 : 1230;
-    const int defaultHeight = compatOpenAutoProfile ? 480 : 800;
+    const int defaultWidth = compatOpenAutoProfile ? 800 : 1024;
+    const int defaultHeight = compatOpenAutoProfile ? 480 : 600 ;
     const int defaultFps = 30;
     const int defaultDensity = compatOpenAutoProfile ? 140 : 160;
 
