@@ -1510,7 +1510,7 @@ class AAControlEventHandler final
     headUnitInfo->set_head_unit_software_build("1");
     headUnitInfo->set_head_unit_software_version("1.0");
 
-    appendVideoSinkFeature(response, m_service->m_videoChannel, m_service->getNegotiatedVideoResolution(),
+    appendVideoSinkFeature(response, m_service->m_videoChannel, m_service->m_resolution,
                  m_service->m_fps, m_service->m_videoDensity,
                  m_service->m_videoWidthMargin, m_service->m_videoHeightMargin);
     appendAudioSinkFeature(response, m_service->m_mediaAudioChannel,
@@ -1525,7 +1525,7 @@ class AAControlEventHandler final
     appendAudioSinkFeature(response, m_service->m_telephonyAudioChannel,
                            aap_protobuf::service::media::sink::message::AUDIO_STREAM_TELEPHONY,
                            16000, 1);
-    appendInputSourceFeature(response, m_service->m_inputChannel, m_service->getNegotiatedVideoResolution());
+    appendInputSourceFeature(response, m_service->m_inputChannel, m_service->getNegotiatedTouchResolution());
     appendSensorSourceFeature(response, m_service->m_sensorChannel);
     appendNavigationStatusFeature(response, m_service->m_navigationChannel);
     appendMediaPlaybackStatusFeature(response, m_service->m_mediaPlaybackChannel);
