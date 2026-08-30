@@ -883,6 +883,8 @@ static void appendInputSourceFeature(
   auto* touchscreen = inputService->add_touchscreen();
   touchscreen->set_width(static_cast<uint32_t>(resolution.width()));
   touchscreen->set_height(static_cast<uint32_t>(resolution.height()));
+  qInfo() << "[AA][touchDebug] advertised touchscreen resolution to phone:"
+          << resolution.width() << "x" << resolution.height();
 }
 
 static void appendSensorSourceFeature(
@@ -1502,7 +1504,7 @@ class AAControlEventHandler final
     headUnitInfo->set_make("Crankshaft");
     headUnitInfo->set_model("Universal");
     headUnitInfo->set_year("2018");
-    headUnitInfo->set_vehicle_id("2024110822150988");
+    headUnitInfo->set_vehicle_id("2024110822`0988");
     headUnitInfo->set_head_unit_make("f1x");
     headUnitInfo->set_head_unit_model("Crankshaft-NG Autoapp");
     headUnitInfo->set_head_unit_software_build("1");
