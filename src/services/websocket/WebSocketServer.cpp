@@ -599,6 +599,22 @@ void WebSocketServer::handlePublish(const QString& topic, const QVariantMap& pay
             keyCode = 4;
           } else if (keyName == QStringLiteral("HOME")) {
             keyCode = 3;
+          } else if (keyName == QStringLiteral("MEDIA_PLAY_PAUSE")) {
+            keyCode = 85;
+          } else if (keyName == QStringLiteral("MEDIA_STOP")) {
+            keyCode = 86;
+          } else if (keyName == QStringLiteral("MEDIA_NEXT")) {
+            keyCode = 87;
+          } else if (keyName == QStringLiteral("MEDIA_PREVIOUS")) {
+            keyCode = 88;
+          } else if (keyName == QStringLiteral("MEDIA_REWIND")) {
+            keyCode = 89;
+          } else if (keyName == QStringLiteral("MEDIA_FAST_FORWARD")) {
+            keyCode = 90;
+          } else if (keyName == QStringLiteral("MEDIA_PLAY")) {
+            keyCode = 126;
+          } else if (keyName == QStringLiteral("MEDIA_PAUSE")) {
+            keyCode = 127;
           }
         }
 
