@@ -875,6 +875,23 @@ static void appendInputSourceFeature(
       55,  56,  61,  62,  66,  67,  68,  69,  70,  71,
       72,  73,  74,  75,  76,  81,  111};
 
+    // Media playback controls
+    inputService->add_keycodes_supported(
+        aap_protobuf::service::media::sink::message::KeyCode::KEYCODE_MEDIA_PLAY_PAUSE);
+    inputService->add_keycodes_supported(
+        aap_protobuf::service::media::sink::message::KeyCode::KEYCODE_MEDIA_PREVIOUS);
+    inputService->add_keycodes_supported(
+        aap_protobuf::service::media::sink::message::KeyCode::KEYCODE_MEDIA_NEXT);
+    inputService->add_keycodes_supported(
+        aap_protobuf::service::media::sink::message::KeyCode::KEYCODE_MEDIA_REWIND);
+    inputService->add_keycodes_supported(
+        aap_protobuf::service::media::sink::message::KeyCode::KEYCODE_MEDIA_FAST_FORWARD);
+    inputService->add_keycodes_supported(
+        aap_protobuf::service::media::sink::message::KeyCode::KEYCODE_MEDIA_PLAY);
+    inputService->add_keycodes_supported(
+        aap_protobuf::service::media::sink::message::KeyCode::KEYCODE_MEDIA_PAUSE);
+    inputService->add_keycodes_supported(
+        aap_protobuf::service::media::sink::message::KeyCode::KEYCODE_MEDIA_STOP);
     for (const int code : keyboardCodes) {
     inputService->add_keycodes_supported(
       static_cast<aap_protobuf::service::media::sink::message::KeyCode>(code));
