@@ -592,8 +592,17 @@ void WebSocketServer::handlePublish(const QString& topic, const QVariantMap& pay
       } else if (topic == QStringLiteral("android-auto/key")) {
         const QString keyName = payload.value(QStringLiteral("key")).toString().toUpper();
         const QString keyAction = payload.value(QStringLiteral("action")).toString().toLower();
+
+        // Accept numeric "key" from the UI, or explicit "key_code".
         int keyCode = payload.value(QStringLiteral("key_code"), -1).toInt();
 
+        if (keyCode < 0) {
+          const QJsonValue keyValue = QJsonValue::fromVariant(payload.value(QStringLiteral("key")));
+
+          if (keyValue.isDouble()) {
+            keyCode = keyValue.toInt(-1);
+          }
+        }
         if (keyCode < 0) {
           if (keyName == QStringLiteral("BACK")) {
             keyCode = 4;
