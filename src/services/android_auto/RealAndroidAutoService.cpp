@@ -4915,6 +4915,8 @@ bool RealAndroidAutoService::disconnect() {
     return false;
   }
 
+  m_aasdkTeardownInProgress = true;
+
   transitionToState(ConnectionState::DISCONNECTING);
   Logger::instance().info("Disconnecting from device");
 
