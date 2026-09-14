@@ -29,7 +29,5 @@ libusb-1.0-0-dev
 libssl-dev
 libprotobuf-dev
 protobuf-compiler
-libaasdk
-libaasdk-dev
 libboost-all-dev
 file
