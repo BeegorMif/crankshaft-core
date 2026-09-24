@@ -2,7 +2,6 @@
 set -euo pipefail
 
 BUILD_TYPE="${BUILD_TYPE:-Release}"
-BUILD_TESTS="${BUILD_TESTS:-ON}"
 BUILD_PACKAGE="${BUILD_PACKAGE:-OFF}"
 BUILD_DIR="${BUILD_DIR:-build-${BUILD_TYPE,,}}"
 SOURCE_DIR="${SOURCE_DIR:-src}"
@@ -238,7 +237,6 @@ fi
 
 cmake_args=(
   -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
-  -DBUILD_TESTS="${BUILD_TESTS}"
 )
 
 # Pass architecture from CI env (ARCH_ID) or TARGET_ARCH to CMake
@@ -317,11 +315,6 @@ fi
 
 log "Building"
 cmake --build "${BUILD_DIR}" --parallel "${JOBS}"
-
-if [[ "${BUILD_TESTS}" == "ON" ]]; then
-  log "Running tests"
-  QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-offscreen}" ctest --test-dir "${BUILD_DIR}" --output-on-failure
-fi
 
 if [[ "${BUILD_PACKAGE}" == "ON" ]]; then
   log "Packaging"

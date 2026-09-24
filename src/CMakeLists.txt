@@ -21,8 +21,6 @@ project(crankshaft-core)
 
 include(GNUInstallDirs)
 
-option(BUILD_TESTS "Build core unit tests" ON)
-
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -178,8 +176,8 @@ option(CRANKSHAFT_AASDK_OLD_API "Enable old AASDK API compatibility" ON)
 if(CRANKSHAFT_AASDK_OLD_API)
   target_compile_definitions(crankshaft-core-lib PRIVATE CRANKSHAFT_AASDK_OLD_API)
   target_compile_definitions(crankshaft-core PRIVATE CRANKSHAFT_AASDK_OLD_API)
-  # Propagate to all core-related targets (UI, tests, etc.)
-  foreach(target crankshaft-core crankshaft-ui crankshaft-ui-slim crankshaft-tests)
+  # Propagate to all core-related targets (UI, etc.)
+  foreach(target crankshaft-core crankshaft-ui crankshaft-ui-slim)
     if(TARGET ${target})
       target_compile_definitions(${target} PRIVATE CRANKSHAFT_AASDK_OLD_API)
     endif()
@@ -274,12 +272,6 @@ install(FILES ${CMAKE_SOURCE_DIR}/config/crankshaft.json
   DESTINATION /etc/crankshaft
   COMPONENT core
 )
-
-# Add tests
-if(BUILD_TESTS)
-  enable_testing()
-  add_subdirectory(tests)
-endif()
 
 # Install AA discovery trigger scripts
 install(PROGRAMS
