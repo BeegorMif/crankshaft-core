@@ -169,7 +169,7 @@ ensure_aasdk() {
   fi
 
   log "ERROR: AASDK not found via pkg-config"
-  log "Install dependencies first so libaasdk and libaasdk-dev are present (for example: ./build.sh --install-deps)"
+  log "Install the AASDK development files first (for example, build/install the crankshaft_aasdk repository)"
   exit 1
 }
 

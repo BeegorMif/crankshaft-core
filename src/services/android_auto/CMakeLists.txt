@@ -53,27 +53,6 @@ if(TARGET CRANKSHAFT_AASDK)
     target_compile_definitions(android-auto-service PRIVATE
         AASDK_AVAILABLE=1
     )
-elseif(TARGET aasdk)
-    target_link_libraries(android-auto-service
-        aasdk
-    )
-    target_compile_definitions(android-auto-service PRIVATE
-        AASDK_AVAILABLE=1
-    )
-endif()
-
-# Try to find aasdk via pkg-config as fallback
-find_package(PkgConfig)
-if(PkgConfig_FOUND)
-    pkg_check_modules(AASDK IMPORTED_TARGET libaasdk)
-    if(AASDK_FOUND)
-        target_link_libraries(android-auto-service PRIVATE
-            PkgConfig::AASDK
-        )
-        target_compile_definitions(android-auto-service PRIVATE
-            AASDK_AVAILABLE=1
-        )
-    endif()
 endif()
 
 target_include_directories(android-auto-service PUBLIC

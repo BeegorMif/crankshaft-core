@@ -95,26 +95,48 @@ if(PkgConfig_FOUND AND NOT CRANKSHAFT_AASDK_FOUND)
         pkg_check_modules(AASDK QUIET libaasdk)
     endif()
     if(AASDK_FOUND)
-        target_include_directories(CRANKSHAFT_AASDK INTERFACE ${AASDK_INCLUDE_DIRS})
-        target_link_directories(CRANKSHAFT_AASDK INTERFACE ${AASDK_LIBRARY_DIRS})
-        target_link_libraries(CRANKSHAFT_AASDK INTERFACE ${AASDK_LIBRARIES})
-        
-        # Link aap_protobuf explicitly (required by AASDK but not always in transitive deps)
-        if(AAP_PROTOBUF_FOUND)
-            if(AAP_PROTOBUF_INCLUDE_DIRS)
-                target_include_directories(CRANKSHAFT_AASDK INTERFACE ${AAP_PROTOBUF_INCLUDE_DIRS})
-            endif()
-            if(AAP_PROTOBUF_LIBRARY_DIRS)
-                target_link_directories(CRANKSHAFT_AASDK INTERFACE ${AAP_PROTOBUF_LIBRARY_DIRS})
-            endif()
-            if(AAP_PROTOBUF_LIBRARIES)
-                target_link_libraries(CRANKSHAFT_AASDK INTERFACE ${AAP_PROTOBUF_LIBRARIES})
-            else()
-                # Fallback: link directly by name
-                target_link_libraries(CRANKSHAFT_AASDK INTERFACE aap_protobuf)
-            endif()
+        pkg_check_modules(AASDK QUIET IMPORTED_TARGET aasdk)
+
+        if(NOT AASDK_FOUND)
+            pkg_check_modules(AASDK QUIET IMPORTED_TARGET libaasdk)
         endif()
-        
+
+        if(AASDK_FOUND)
+            target_link_libraries(CRANKSHAFT_AASDK INTERFACE
+                PkgConfig::AASDK
+            )
+
+            target_include_directories(CRANKSHAFT_AASDK INTERFACE
+                ${AASDK_INCLUDE_DIRS}
+            )
+
+            find_library(AAP_PROTOBUF_LIBRARY
+                NAMES aap_protobuf
+                PATHS /usr/local/lib
+                NO_DEFAULT_PATH
+            )
+
+            if(NOT AAP_PROTOBUF_LIBRARY)
+                message(FATAL_ERROR
+                    "CrankshaftAasdk: local libaap_protobuf.so not found in /usr/local/lib"
+                )
+            endif()
+
+            message(STATUS
+                "CrankshaftAasdk: Using AAP protobuf ${AAP_PROTOBUF_LIBRARY}"
+            )
+
+            target_link_libraries(CRANKSHAFT_AASDK INTERFACE
+                "${AAP_PROTOBUF_LIBRARY}"
+            )
+
+            set(CRANKSHAFT_AASDK_FOUND TRUE)
+
+            message(STATUS
+                "CrankshaftAasdk: Using pkg-config AASDK (${AASDK_VERSION})"
+            )
+        endif()     
+        # Link aap_protobuf explicitly (required by AASDK but not always in transitive deps)
         set(CRANKSHAFT_AASDK_FOUND TRUE)
         message(STATUS "CrankshaftAasdk: Using pkg-config AASDK (${AASDK_VERSION})")
     endif()
