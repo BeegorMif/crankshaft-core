@@ -50,61 +50,6 @@ log() {
   printf '[build.sh] %s\n' "$*"
 }
 
-configure_opencardev_repo() {
-  local apt_get="$1"
-  local -a sudo_cmd=()
-
-  if [[ "$(id -u)" -ne 0 ]]; then
-    sudo_cmd=(sudo)
-  fi
-
-  if [[ ! -f /etc/os-release ]]; then
-    log "WARNING: /etc/os-release not found; skipping OpenCarDev apt repository setup"
-    return 0
-  fi
-
-  local codename=""
-  codename="$(. /etc/os-release && echo "${VERSION_CODENAME:-}")"
-  if [[ -z "${codename}" ]]; then
-    log "WARNING: Unable to determine distro codename; skipping OpenCarDev apt repository setup"
-    return 0
-  fi
-
-  local arch keyring repo_file repo_line current_line
-  arch="$(dpkg --print-architecture)"
-  keyring="/usr/share/keyrings/opencardev-archive-keyring.gpg"
-  repo_file="/etc/apt/sources.list.d/opencardev.list"
-  repo_line="deb [arch=${arch} signed-by=${keyring}] https://apt.opencardev.org ${codename} stable"
-
-  log "Ensuring OpenCarDev apt repository is configured for ${codename}/${arch}"
-
-  ${apt_get} update -qq
-  DEBIAN_FRONTEND=noninteractive ${apt_get} install -y --no-install-recommends ca-certificates curl gpg
-
-  local keyring_tmp repo_tmp
-  keyring_tmp="$(mktemp)"
-  repo_tmp="$(mktemp)"
-
-  curl -fsSL https://apt.opencardev.org/opencardev.gpg.key | gpg --dearmor --yes --output "${keyring_tmp}"
-  printf '%s\n' "${repo_line}" > "${repo_tmp}"
-
-  "${sudo_cmd[@]}" mkdir -p /usr/share/keyrings /etc/apt/sources.list.d
-  "${sudo_cmd[@]}" install -m 0644 "${keyring_tmp}" "${keyring}"
-
-  current_line=""
-  if [[ -f "${repo_file}" ]]; then
-    current_line="$(tr -d '\r' < "${repo_file}" | sed -e '/^\s*#/d' -e '/^\s*$/d' | head -n1 || true)"
-  fi
-
-  if [[ "${current_line}" != "${repo_line}" ]]; then
-    "${sudo_cmd[@]}" install -m 0644 "${repo_tmp}" "${repo_file}"
-  fi
-
-  rm -f "${keyring_tmp}" "${repo_tmp}"
-
-  ${apt_get} update -qq
-}
-
 install_deps() {
   local script_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -192,9 +137,7 @@ install_deps() {
   local apt_get="apt-get"
   [[ "$(id -u)" -ne 0 ]] && apt_get="sudo apt-get"
 
-  configure_opencardev_repo "${apt_get}"
-
-  ${apt_get} update -qq
+    ${apt_get} update -qq
   DEBIAN_FRONTEND=noninteractive ${apt_get} install -y --no-install-recommends "${packages[@]}"
 
   if [[ "${BUILD_SBOM}" == "ON" ]] && ! command -v syft >/dev/null 2>&1; then
